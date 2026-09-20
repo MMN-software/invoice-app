@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'inv-v1';
-const RUNTIME_CACHE = 'inv-runtime-v1';
+const SHELL_CACHE = 'inv-v2';
+const RUNTIME_CACHE = 'inv-runtime-v2';
 
 const SHELL_ASSETS = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 const CDN_PRECACHE = [
