@@ -1,0 +1,21 @@
+{
+  "id": "/invoice-app/",
+  "name": "فاکتورساز — Professional Invoicing",
+  "short_name": "فاکتورساز",
+  "description": "صدور فاکتور حرفه‌ای، مدیریت مشتریان، گزارش فروش و خروجی PDF",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a1a",
+  "theme_color": "#8b5cf6",
+  "lang": "fa",
+  "dir": "rtl",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

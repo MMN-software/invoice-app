@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a1a">
+<title>فاکتورساز</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="فاکتورساز">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<style>
+:root{--bg1:#0a0a1a;--bg2:#131328;--accent:#8b5cf6;--accent2:#06b6d4;--glass:rgba(255,255,255,.06);--border:rgba(255,255,255,.1);--text:#f1f5f9;--muted:#94a3b8;--danger:#ef4444;--success:#22c55e;--warn:#f59e0b;--info:#3b82f6}
+[data-theme="light"]{--bg1:#f8fafc;--bg2:#e2e8f0;--glass:rgba(255,255,255,.75);--border:rgba(0,0,0,.08);--text:#0f172a;--muted:#64748b}
+[data-accent="blue"]{--accent:#3b82f6;--accent2:#06b6d4}
+[data-accent="pink"]{--accent:#ec4899;--accent2:#f43f5e}
+[data-accent="green"]{--accent:#10b981;--accent2:#84cc16}
+[data-accent="orange"]{--accent:#f97316;--accent2:#eab308}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:'Vazirmatn',system-ui,sans-serif}
+html,body{min-height:100%;overflow-x:hidden}
+body{background:radial-gradient(circle at 20% 0%,var(--bg2),var(--bg1) 60%);color:var(--text);padding-bottom:100px;min-height:100vh;transition:background .5s,color .3s}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(600px circle at 0% 0%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 40%),radial-gradient(500px circle at 100% 100%,color-mix(in srgb,var(--accent2) 12%,transparent),transparent 40%)}
+.glass{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px}
+main{margin:0 10px;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.section-title{font-size:15px;font-weight:700;margin:16px 4px 10px;display:flex;align-items:center;gap:8px}
+.section-title>span:first-child{font-size:19px}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.empty-icon{font-size:44px;margin-bottom:10px;opacity:.5}
+
+.app-header{position:sticky;top:0;z-index:50;margin:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.h-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.h-logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.h-info{display:flex;flex-direction:column;min-width:0}
+.h-title{font-size:15px;font-weight:800}
+.h-sub{font-size:10px;color:var(--muted)}
+.h-actions{display:flex;gap:5px}
+.icon-btn{width:36px;height:36px;border-radius:12px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:15px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+.icon-btn:active{transform:scale(.9)}
+
+.bottom-nav{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:7px 5px;background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:20px}
+.nav-btn{padding:7px 1px;border-radius:12px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:9px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:.25s}
+.nav-btn .ni{font-size:19px}
+.nav-btn.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 25%,transparent),color-mix(in srgb,var(--accent2) 20%,transparent));color:var(--text)}
+.nav-btn.active .ni{transform:scale(1.15)}
+
+.big-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.big-stat{padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--border);position:relative;overflow:hidden}
+.big-stat::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 40%,transparent),transparent 70%)}
+.big-stat .bs-icon{font-size:22px;margin-bottom:6px}
+.big-stat .bs-val{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;word-break:break-all}
+.big-stat .bs-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+
+.chart-wrap{padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--border);margin-bottom:16px}
+.chart-title{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:6px;height:140px;padding-bottom:24px;position:relative}
+.chart .bar{flex:1;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:8px 8px 4px 4px;min-height:3px;position:relative;transition:.4s}
+.chart .bar .lbl{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted);white-space:nowrap}
+
+.invoice-card{padding:14px;margin-bottom:10px;border-radius:16px;background:var(--glass);border:1px solid var(--border);cursor:pointer;transition:.2s}
+.invoice-card:active{transform:scale(.98)}
+.ic-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.ic-num{font-size:11px;color:var(--muted);font-family:monospace}
+.ic-buyer{font-size:15px;font-weight:700;margin-top:4px}
+.ic-status{font-size:10px;padding:3px 9px;border-radius:10px;font-weight:600;white-space:nowrap}
+.ic-status.paid{background:color-mix(in srgb,var(--success) 22%,transparent);color:var(--success)}
+.ic-status.pending{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.ic-status.canceled{background:color-mix(in srgb,var(--danger) 22%,transparent);color:var(--danger)}
+.ic-foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:10px;margin-top:2px}
+.ic-amount{font-size:15px;font-weight:800;color:var(--text)}
+.ic-date{font-size:11px}
+
+.form-card{padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--border);margin-bottom:12px}
+.form-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.form-title .ft-icon{font-size:18px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field input,.field textarea,.field select{width:100%;padding:11px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:.2s}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+.field textarea{min-height:70px;resize:none;line-height:1.6}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field-row-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px}
+
+.item-row{padding:12px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:8px}
+.item-num{font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700}
+.item-grid{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:end}
+.item-grid input{padding:8px 10px;font-size:13px}
+.item-del{width:32px;height:32px;border-radius:10px;border:none;background:color-mix(in srgb,var(--danger) 20%,transparent);color:var(--danger);cursor:pointer;font-size:14px}
+.item-total{font-size:12px;color:var(--muted);text-align:left;margin-top:6px}
+.item-total b{color:var(--text);font-size:13px}
+
+.totals-box{padding:14px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-top:6px}
+.totals-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.totals-row:last-child{border-bottom:none;font-size:16px;font-weight:800;color:var(--accent);padding-top:12px;margin-top:4px;border-top:2px solid var(--accent)}
+
+.add-btn{width:100%;padding:12px;border-radius:14px;border:1px dashed var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:10px;transition:.2s}
+.add-btn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+
+.btn{padding:12px 18px;border-radius:14px;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;transition:.2s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(.95)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn-ghost{background:var(--glass);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:color-mix(in srgb,var(--danger) 20%,transparent);color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent)}
+.btn-block{width:100%;margin-bottom:10px}
+.btn-sm{padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);cursor:pointer;font-family:inherit;font-size:12px}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeUp .25s}
+.modal{width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:22px;border-radius:22px;background:var(--bg1);border:1px solid var(--border)}
+.modal h3{font-size:17px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.modal-actions{display:flex;gap:8px;margin-top:14px}
+.modal-actions .btn{flex:1}
+
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);gap:10px}
+.setting-row:last-child{border-bottom:none}
+.setting-row .lbl{font-size:13px}
+.setting-row .sub{font-size:11px;color:var(--muted);margin-top:3px}
+.theme-colors{display:flex;gap:8px;padding:10px 0;flex-wrap:wrap}
+.color-dot{width:32px;height:32px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.2s}
+.color-dot.active{border-color:var(--text);transform:scale(1.1)}
+.switch{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--glass);border:1px solid var(--border);transition:.3s;border-radius:26px}
+.slider:before{position:absolute;content:"";height:18px;width:18px;left:4px;bottom:3px;background:var(--muted);transition:.3s;border-radius:50%}
+input:checked+.slider{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+input:checked+.slider:before{transform:translateX(20px);background:#fff}
+
+.logo-upload{display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:rgba(255,255,255,.03);border:1px dashed var(--border);margin-bottom:10px}
+.logo-preview{width:60px;height:60px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-size:26px;overflow:hidden;flex-shrink:0}
+.logo-preview img{width:100%;height:100%;object-fit:cover}
+
+.toast{padding:12px 16px;border-radius:14px;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.4);animation:toastIn .3s ease;pointer-events:auto;display:flex;align-items:center;gap:10px}
+.toast.success{border-color:color-mix(in srgb,var(--success) 50%,transparent);background:color-mix(in srgb,var(--success) 15%,var(--bg2))}
+.toast.error{border-color:color-mix(in srgb,var(--danger) 50%,transparent);background:color-mix(in srgb,var(--danger) 15%,var(--bg2))}
+.toast.info{border-color:color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 15%,var(--bg2))}
+@keyframes toastIn{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== PRINT STYLES ===== */
+.print-area{display:none}
+
+@media print {
+  @page { size: A4; margin: 12mm 10mm; }
+  html,body{background:#fff!important;color:#000!important;padding:0!important;margin:0!important;min-height:auto!important}
+  body::before{display:none!important}
+  body>*{display:none!important}
+  body>.print-area{display:block!important}
+  .print-area{font-family:'Vazirmatn',sans-serif;direction:rtl;color:#000;background:#fff}
+  .print-area *{color:#000!important}
+  .p-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #333;padding-bottom:14px;margin-bottom:18px;gap:20px}
+  .p-seller{display:flex;gap:14px;align-items:flex-start}
+  .p-logo{width:70px;height:70px;border-radius:8px;background:#f3f4f6;display:grid;place-items:center;font-size:32px;overflow:hidden;flex-shrink:0}
+  .p-logo img{width:100%;height:100%;object-fit:cover}
+  .p-seller-info h1{font-size:20px;margin-bottom:6px}
+  .p-seller-info div{font-size:11px;line-height:1.6;color:#444!important}
+  .p-invoice-meta{text-align:left;flex-shrink:0}
+  .p-invoice-meta h2{font-size:24px;margin-bottom:8px;letter-spacing:1px;color:#111!important}
+  .p-invoice-meta .p-meta-row{font-size:11px;line-height:1.8}
+  .p-invoice-meta .p-meta-row b{display:inline-block;min-width:70px}
+  .p-buyer-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:16px}
+  .p-buyer-box h3{font-size:13px;margin-bottom:6px;color:#555!important}
+  .p-buyer-box div{font-size:11px;line-height:1.6;color:#333!important}
+  .p-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  .p-table th{background:#f3f4f6;padding:9px 8px;font-size:11px;text-align:right;border:1px solid #d1d5db;font-weight:700}
+  .p-table td{padding:9px 8px;font-size:11px;text-align:right;border:1px solid #e5e7eb;color:#222!important}
+  .p-table td.num{text-align:center;font-family:monospace}
+  .p-table tbody tr:nth-child(even){background:#fafafa}
+  .p-totals{margin-left:auto;width:55%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+  .p-totals-row{display:flex;justify-content:space-between;padding:9px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
+  .p-totals-row:last-child{background:#f9fafb;font-size:14px;font-weight:800;border-bottom:none;padding:12px}
+  .p-notes{margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;font-size:11px;line-height:1.7;color:#333!important;border-right:3px solid #333}
+  .p-footer{margin-top:30px;display:flex;justify-content:space-between;font-size:10px;color:#666!important;padding-top:14px;border-top:1px solid #e5e7eb}
+  .p-signature{margin-top:30px;text-align:left;font-size:11px}
+  .p-signature .p-sig-line{width:180px;border-top:1px solid #333;margin-top:40px;padding-top:4px;text-align:center}
+}
+</style>
+<script type="importmap">
+{ "imports": { "vue": "https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="print-root"></div>
+
+<script type="module">
+import { createApp, reactive, ref, computed, onMounted, watch, nextTick } from 'vue';
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const faDigits = s => String(s).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const newId = () => (crypto?.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const todayKey = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+
+const formatMoney = n => {
+  const num = Number(n) || 0;
+  return faDigits(Math.round(num).toLocaleString('en-US'));
+};
+
+const persianDate = (iso) => {
+  try {
+    const d = iso ? new Date(iso) : new Date();
+    return new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
+  } catch { return ''; }
+};
+
+const persianYearMonth = (iso) => {
+  try {
+    const d = iso ? new Date(iso) : new Date();
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric' }).formatToParts(d);
+    const r = {}; parts.forEach(p => r[p.type] = p.value);
+    return { year: parseInt(r.year), month: parseInt(r.month) };
+  } catch { return { year: 0, month: 0 }; }
+};
+
+const DB = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('inv_' + k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('inv_' + k, JSON.stringify(v)); return true; } catch { return false; } },
+  remove(k) { try { localStorage.removeItem('inv_' + k); } catch {} }
+};
+
+/* ============================================================
+   Toast
+   ============================================================ */
+const toast = {
+  items: reactive([]),
+  show(msg, type = 'info', duration = 3000) {
+    const id = Date.now() + Math.random();
+    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+    this.items.push({ id, msg: icons[type] + ' ' + msg, type });
+    setTimeout(() => this.remove(id), duration);
+  },
+  success(m) { this.show(m, 'success'); },
+  error(m) { this.show(m, 'error'); },
+  info(m) { this.show(m, 'info'); },
+  remove(id) { const i = this.items.findIndex(x => x.id === id); if (i > -1) this.items.splice(i, 1); }
+};
+
+/* ============================================================
+   Constants
+   ============================================================ */
+const CURRENCIES = [
+  { id: 'toman', name: 'تومان', symbol: 'ت' },
+  { id: 'rial', name: 'ریال', symbol: 'ر' },
+  { id: 'usd', name: 'دلار', symbol: '$' },
+  { id: 'eur', name: 'یورو', symbol: '€' }
+];
+
+const STATUSES = [
+  { id: 'pending', name: 'در انتظار', icon: '⏳' },
+  { id: 'paid', name: 'پرداخت‌شده', icon: '✅' },
+  { id: 'canceled', name: 'لغو شده', icon: '❌' }
+];
+
+const DEFAULT_SETTINGS = {
+  theme: 'dark',
+  accent: 'purple',
+  currency: 'toman',
+  numberPrefix: 'INV',
+  nextNumber: 1,
+  taxRate: 9,
+  autoTax: true,
+  defaultNotes: 'پرداخت تا ۷ روز پس از تاریخ صدور.\nبا تشکر از همکاری شما.'
+};
+
+const ACCENTS = [
+  { id: 'purple', c1: '#8b5cf6', c2: '#06b6d4' },
+  { id: 'blue', c1: '#3b82f6', c2: '#06b6d4' },
+  { id: 'pink', c1: '#ec4899', c2: '#f43f5e' },
+  { id: 'green', c1: '#10b981', c2: '#84cc16' },
+  { id: 'orange', c1: '#f97316', c2: '#eab308' }
+];
+
+/* ============================================================
+   Store
+   ============================================================ */
+const store = reactive({
+  seller: DB.get('seller', { name: '', phone: '', email: '', address: '', taxId: '', logo: null }),
+  buyers: DB.get('buyers', []),
+  invoices: DB.get('invoices', []),
+  settings: { ...DEFAULT_SETTINGS, ...DB.get('settings', {}) },
+  draft: null,
+
+  save() {
+    DB.set('seller', this.seller);
+    DB.set('buyers', this.buyers);
+    DB.set('invoices', this.invoices);
+    DB.set('settings', this.settings);
+  },
+  applyTheme() {
+    document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
+    document.documentElement.setAttribute('data-accent', this.settings.accent || 'purple');
+  },
+  toggleTheme() {
+    this.settings.theme = this.settings.theme === 'dark' ? 'light' : 'dark';
+    this.save(); this.applyTheme();
+  },
+
+  generateInvoiceNumber() {
+    const yy = persianYearMonth().year;
+    const n = String(this.settings.nextNumber || 1).padStart(4, '0');
+    return `${this.settings.numberPrefix || 'INV'}-${yy}-${n}`;
+  },
+
+  createDraft() {
+    const today = todayKey();
+    const due = new Date(); due.setDate(due.getDate() + 7);
+    this.draft = {
+      id: null,
+      number: this.generateInvoiceNumber(),
+      issueDate: today,
+      dueDate: due.toISOString().slice(0, 10),
+      status: 'pending',
+      seller: JSON.parse(JSON.stringify(this.seller)),
+      buyer: { name: '', phone: '', email: '', address: '', taxId: '' },
+      items: [{ id: newId(), desc: '', qty: 1, unitPrice: 0, discount: 0 }],
+      taxRate: this.settings.autoTax ? this.settings.taxRate : 0,
+      notes: this.settings.defaultNotes,
+      currency: this.settings.currency
+    };
+  },
+
+  loadDraft(invoice) {
+    this.draft = JSON.parse(JSON.stringify(invoice));
+  },
+
+  saveDraft() {
+    if (!this.draft) return false;
+    const d = this.draft;
+    if (!d.buyer.name?.trim()) { toast.error('نام خریدار الزامی است'); return false; }
+    if (!d.items.some(i => i.desc?.trim() || i.qty > 0)) { toast.error('حداقل یک آیتم لازم است'); return false; }
+    const cleanItems = d.items.filter(i => i.desc?.trim() || i.qty > 0 || i.unitPrice > 0);
+    const record = { ...d, items: cleanItems, updatedAt: new Date().toISOString() };
+
+    const idx = this.invoices.findIndex(x => x.id === d.id);
+    if (idx > -1) {
+      this.invoices[idx] = record;
+    } else {
+      record.id = newId();
+      record.createdAt = new Date().toISOString();
+      this.invoices.unshift(record);
+      this.settings.nextNumber = (this.settings.nextNumber || 1) + 1;
+    }
+
+    // Save buyer for reuse
+    const exBuyer = this.buyers.find(b => b.name.trim() === d.buyer.name.trim() && b.phone === d.buyer.phone);
+    if (!exBuyer && d.buyer.name.trim()) {
+      this.buyers.unshift({ id: newId(), ...d.buyer });
+    }
+
+    this.save();
+    return true;
+  },
+
+  deleteInvoice(id) {
+    this.invoices = this.invoices.filter(x => x.id !== id);
+    this.save();
+  },
+
+  duplicateInvoice(id) {
+    const orig = this.invoices.find(x => x.id === id);
+    if (!orig) return;
+    const copy = JSON.parse(JSON.stringify(orig));
+    copy.id = null;
+    copy.number = this.generateInvoiceNumber();
+    copy.issueDate = todayKey();
+    copy.status = 'pending';
+    copy.items = copy.items.map(i => ({ ...i, id: newId() }));
+    this.loadDraft(copy);
+  },
+
+  calculateTotals(inv) {
+    const items = (inv.items || []).map(i => {
+      const qty = Number(i.qty) || 0;
+      const price = Number(i.unitPrice) || 0;
+      const disc = Number(i.discount) || 0;
+      const base = qty * price;
+      const discount = base * (disc / 100);
+      return { ...i, base, discount, total: base - discount };
+    });
+    const subtotal = items.reduce((s, i) => s + i.base, 0);
+    const discountTotal = items.reduce((s, i) => s + i.discount, 0);
+    const afterDiscount = subtotal - discountTotal;
+    const tax = afterDiscount * ((Number(inv.taxRate) || 0) / 100);
+    const grandTotal = afterDiscount + tax;
+    return { items, subtotal, discountTotal, afterDiscount, tax, grandTotal };
+  }
+});
+
+/* ============================================================
+   Modals state
+   ============================================================ */
+const modals = reactive({
+  settings: false,
+  buyerPicker: false,
+  invoiceDetail: null,
+  confirmDelete: null
+});
+
+/* ============================================================
+   Components
+   ============================================================ */
+
+const AppHeader = {
+  setup() {
+    return { store, modals };
+  },
+  template: `
+    <header class="glass app-header">
+      <div class="h-left">
+        <div class="h-logo">🧾</div>
+        <div class="h-info">
+          <div class="h-title">فاکتورساز</div>
+          <div class="h-sub">Professional Invoicing</div>
+        </div>
+      </div>
+      <div class="h-actions">
+        <button class="icon-btn" @click="store.toggleTheme()">{{ store.settings.theme === 'dark' ? '🌙' : '☀️' }}</button>
+        <button class="icon-btn" @click="modals.settings = true">⚙️</button>
+      </div>
+    </header>
+  `
+};
+
+const BottomNav = {
+  props: { current: String },
+  emits: ['change'],
+  setup() {
+    const items = [
+      { id: 'dashboard', title: 'داشبورد', icon: '📊' },
+      { id: 'new', title: 'فاکتور جدید', icon: '➕' },
+      { id: 'invoices', title: 'فاکتورها', icon: '📋' },
+      { id: 'settings', title: 'تنظیمات', icon: '⚙️' }
+    ];
+    return { items };
+  },
+  template: `
+    <nav class="bottom-nav">
+      <button v-for="item in items" :key="item.id" :class="['nav-btn', { active: current === item.id }]" @click="$emit('change', item.id)">
+        <span class="ni">{{ item.icon }}</span><span>{{ item.title }}</span>
+      </button>
+    </nav>
+  `
+};
+
+const DashboardView = {
+  emits: ['navigate'],
+  setup(props, { emit }) {
+    const totalPaid = computed(() => {
+      return store.invoices.filter(i => i.status === 'paid').reduce((s, i) => s + store.calculateTotals(i).grandTotal, 0);
+    });
+    const totalPending = computed(() => {
+      return store.invoices.filter(i => i.status === 'pending').reduce((s, i) => s + store.calculateTotals(i).grandTotal, 0);
+    });
+    const countThisMonth = computed(() => {
+      const now = persianYearMonth();
+      return store.invoices.filter(i => {
+        const p = persianYearMonth(i.issueDate);
+        return p.year === now.year && p.month === now.month;
+      }).length;
+    });
+    const currencySymbol = computed(() => CURRENCIES.find(c => c.id === store.settings.currency)?.symbol || 'ت');
+
+    const last6Months = computed(() => {
+      const arr = [];
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const p = persianYearMonth(d.toISOString());
+        arr.push({ year: p.year, month: p.month, total: 0, count: 0 });
+      }
+      store.invoices.forEach(inv => {
+        if (inv.status === 'canceled') return;
+        const p = persianYearMonth(inv.issueDate);
+        const slot = arr.find(a => a.year === p.year && a.month === p.month);
+        if (slot) {
+          slot.total += store.calculateTotals(inv).grandTotal;
+          slot.count++;
+        }
+      });
+      return arr;
+    });
+    const maxChart = computed(() => Math.max(1, ...last6Months.value.map(m => m.total)));
+    const monthNames = ['فرو','ارد','خرد','تیر','مرد','شهر','مهر','آبا','آذر','دی','بهم','اسف'];
+    const labelForMonth = (m) => monthNames[m.month - 1] || '';
+
+    const recentInvoices = computed(() => store.invoices.slice(0, 5));
+
+    const goToInvoice = (id) => {
+      modals.invoiceDetail = store.invoices.find(x => x.id === id);
+    };
+
+    return { store, modals, totalPaid, totalPending, countThisMonth, currencySymbol, last6Months, maxChart, labelForMonth, recentInvoices, goToInvoice, formatMoney, persianDate, faDigits, emit };
+  },
+  template: `
+    <div class="section-title"><span>📊</span><span>داشبورد</span></div>
+
+    <div class="big-stats">
+      <div class="big-stat">
+        <div class="bs-icon">💰</div>
+        <div class="bs-val">{{ formatMoney(totalPaid) }} {{ currencySymbol }}</div>
+        <div class="bs-lbl">دریافت‌شده</div>
+      </div>
+      <div class="big-stat">
+        <div class="bs-icon">⏳</div>
+        <div class="bs-val">{{ formatMoney(totalPending) }} {{ currencySymbol }}</div>
+        <div class="bs-lbl">در انتظار</div>
+      </div>
+      <div class="big-stat">
+        <div class="bs-icon">🧾</div>
+        <div class="bs-val">{{ faDigits(countThisMonth) }}</div>
+        <div class="bs-lbl">این ماه</div>
+      </div>
+      <div class="big-stat">
+        <div class="bs-icon">📋</div>
+        <div class="bs-val">{{ faDigits(store.invoices.length) }}</div>
+        <div class="bs-lbl">کل فاکتورها</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" @click="emit('navigate','new')">➕ صدور فاکتور جدید</button>
+
+    <div class="chart-wrap" v-if="store.invoices.length">
+      <div class="chart-title">📈 فروش ۶ ماه اخیر</div>
+      <div class="chart">
+        <div v-for="(m, i) in last6Months" :key="i" class="bar" :style="{ height: Math.max(3, (m.total/maxChart)*100) + '%' }">
+          <div class="lbl">{{ labelForMonth(m) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="recentInvoices.length">
+      <div class="section-title"><span>🕐</span><span>آخرین فاکتورها</span></div>
+      <div v-for="inv in recentInvoices" :key="inv.id" class="invoice-card" @click="goToInvoice(inv.id)">
+        <div class="ic-head">
+          <div>
+            <div class="ic-num">{{ inv.number }}</div>
+            <div class="ic-buyer">{{ inv.buyer.name }}</div>
+          </div>
+          <span :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت‌شده' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
+        </div>
+        <div class="ic-foot">
+          <span class="ic-date">{{ persianDate(inv.issueDate) }}</span>
+          <span class="ic-amount">{{ formatMoney(store.calculateTotals(inv).grandTotal) }} {{ currencySymbol }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="empty">
+      <div class="empty-icon">🧾</div>
+      هنوز فاکتوری صادر نکردی!
+    </div>
+  `
+};
+
+const InvoiceForm = {
+  emits: ['saved', 'canceled'],
+  setup(props, { emit }) {
+    if (!store.draft) store.createDraft();
+
+    const draft = computed(() => store.draft);
+    const totals = computed(() => store.calculateTotals(store.draft));
+
+    const addItem = () => {
+      store.draft.items.push({ id: newId(), desc: '', qty: 1, unitPrice: 0, discount: 0 });
+    };
+    const removeItem = (id) => {
+      if (store.draft.items.length <= 1) { toast.error('حداقل یک آیتم لازم است'); return; }
+      store.draft.items = store.draft.items.filter(i => i.id !== id);
+    };
+    const updateItemTotal = (item) => {
+      const base = (Number(item.qty) || 0) * (Number(item.unitPrice) || 0);
+      const disc = base * ((Number(item.discount) || 0) / 100);
+      return base - disc;
+    };
+    const save = () => {
+      if (store.saveDraft()) {
+        toast.success('فاکتور ذخیره شد');
+        emit('saved');
+      }
+    };
+    const print = () => {
+      if (!store.draft.buyer.name?.trim()) { toast.error('نام خریدار الزامی است'); return; }
+      emit('saved');
+      nextTick(() => { setTimeout(() => window.print(), 300); });
+    };
+    const pickBuyer = () => { modals.buyerPicker = true; };
+    const useBuyer = (b) => {
+      store.draft.buyer = { name: b.name, phone: b.phone || '', email: b.email || '', address: b.address || '', taxId: b.taxId || '' };
+      modals.buyerPicker = false;
+    };
+    const cancelForm = () => {
+      if (confirm('از فاکتور فعلی صرف‌نظر می‌کنی؟')) {
+        store.draft = null;
+        emit('canceled');
+      }
+    };
+    const currencySymbol = computed(() => CURRENCIES.find(c => c.id === store.draft.currency)?.symbol || 'ت');
+
+    return { store, modals, draft, totals, addItem, removeItem, updateItemTotal, save, print, pickBuyer, useBuyer, cancelForm, formatMoney, faDigits, currencySymbol, CURRENCIES };
+  },
+  template: `
+    <div class="section-title">
+      <span>🧾</span>
+      <span>{{ draft.id ? 'ویرایش فاکتور' : 'فاکتور جدید' }}</span>
+    </div>
+
+    <!-- SELLER -->
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🏢</span>اطلاعات فروشنده</div>
+      <div class="logo-upload">
+        <div class="logo-preview">
+          <img v-if="draft.seller.logo" :src="draft.seller.logo" alt="">
+          <span v-else>🏢</span>
+        </div>
+        <div style="flex:1">
+          <input type="file" accept="image/*" id="logoInput" style="display:none" @change="e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const max=400;const ratio=Math.min(max/img.width,max/img.height,1);c.width=img.width*ratio;c.height=img.height*ratio;c.getContext('2d').drawImage(img,0,0,c.width,c.height);draft.seller.logo=c.toDataURL('image/jpeg',0.85);};img.src=ev.target.result;};r.readAsDataURL(f);}">
+          <button class="btn btn-ghost" style="width:100%;padding:8px;font-size:12px" @click="$el.querySelector('#logoInput').click()">📷 تغییر لوگو</button>
+        </div>
+        <button v-if="draft.seller.logo" class="btn btn-danger btn-sm" @click="draft.seller.logo = null">✕</button>
+      </div>
+      <div class="field"><label>نام فروشنده / کسب‌وکار *</label><input v-model="draft.seller.name" placeholder="مثلاً: شرکت نمونه"></div>
+      <div class="field-row">
+        <div class="field"><label>تلفن</label><input v-model="draft.seller.phone" placeholder="۰۹۱۲..."></div>
+        <div class="field"><label>ایمیل</label><input v-model="draft.seller.email" placeholder="info@..."></div>
+      </div>
+      <div class="field"><label>آدرس</label><input v-model="draft.seller.address" placeholder="آدرس کامل"></div>
+      <div class="field"><label>کد اقتصادی / مالیاتی</label><input v-model="draft.seller.taxId" placeholder="اختیاری"></div>
+    </div>
+
+    <!-- BUYER -->
+    <div class="form-card">
+      <div class="form-title">
+        <span class="ft-icon">👤</span>اطلاعات خریدار
+        <button v-if="store.buyers.length" class="btn btn-ghost btn-sm" style="margin-right:auto;padding:6px 10px;font-size:11px" @click="pickBuyer">📋 انتخاب از قبل</button>
+      </div>
+      <div class="field"><label>نام خریدار *</label><input v-model="draft.buyer.name" placeholder="نام شخص یا شرکت"></div>
+      <div class="field-row">
+        <div class="field"><label>تلفن</label><input v-model="draft.buyer.phone" placeholder="۰۹۱۲..."></div>
+        <div class="field"><label>ایمیل</label><input v-model="draft.buyer.email" placeholder="اختیاری"></div>
+      </div>
+      <div class="field"><label>آدرس</label><input v-model="draft.buyer.address" placeholder="آدرس"></div>
+      <div class="field"><label>کد اقتصادی / ملی</label><input v-model="draft.buyer.taxId" placeholder="اختیاری"></div>
+    </div>
+
+    <!-- INVOICE META -->
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">📅</span>مشخصات فاکتور</div>
+      <div class="field-row">
+        <div class="field"><label>شماره فاکتور</label><input v-model="draft.number"></div>
+        <div class="field"><label>وضعیت</label>
+          <select v-model="draft.status">
+            <option v-for="s in [{'id':'pending','name':'⏳ در انتظار'},{'id':'paid','name':'✅ پرداخت‌شده'},{'id':'canceled','name':'❌ لغو شده'}]" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>تاریخ صدور</label><input type="date" v-model="draft.issueDate"></div>
+        <div class="field"><label>تاریخ سررسید</label><input type="date" v-model="draft.dueDate"></div>
+      </div>
+    </div>
+
+    <!-- ITEMS -->
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">📦</span>آیتم‌ها</div>
+      <button class="add-btn" @click="addItem">➕ افزودن آیتم</button>
+      <div v-for="(item, idx) in draft.items" :key="item.id" class="item-row">
+        <div class="item-num">آیتم {{ faDigits(idx + 1) }}</div>
+        <div class="field" style="margin-bottom:6px"><input v-model="item.desc" placeholder="شرح کالا یا خدمت"></div>
+        <div class="item-grid">
+          <input type="number" v-model.number="item.unitPrice" placeholder="قیمت واحد" min="0">
+          <input type="number" v-model.number="item.qty" placeholder="تعداد" min="0" style="width:70px">
+          <button class="item-del" @click="removeItem(item.id)">✕</button>
+        </div>
+        <div class="item-grid" style="margin-top:6px">
+          <div class="field" style="margin:0">
+            <input type="number" v-model.number="item.discount" placeholder="تخفیف %" min="0" max="100">
+          </div>
+        </div>
+        <div class="item-total">جمع: <b>{{ formatMoney(updateItemTotal(item)) }} {{ currencySymbol }}</b></div>
+      </div>
+    </div>
+
+    <!-- TOTALS -->
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">💰</span>محاسبات</div>
+      <div class="field-row">
+        <div class="field"><label>مالیات (%)</label><input type="number" v-model.number="draft.taxRate" min="0" max="100"></div>
+        <div class="field"><label>ارز</label>
+          <select v-model="draft.currency">
+            <option v-for="c in CURRENCIES" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="totals-box">
+        <div class="totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
+        <div class="totals-row" v-if="totals.discountTotal > 0"><span>تخفیف</span><b style="color:var(--danger)">− {{ formatMoney(totals.discountTotal) }} {{ currencySymbol }}</b></div>
+        <div class="totals-row" v-if="totals.tax > 0"><span>مالیات ({{ faDigits(draft.taxRate) }}٪)</span><b>{{ formatMoney(totals.tax) }} {{ currencySymbol }}</b></div>
+        <div class="totals-row"><span>مبلغ نهایی</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>یادداشت</label><textarea v-model="draft.notes" placeholder="توضیحات اضافی..."></textarea></div>
+    </div>
+
+    <button class="btn btn-primary btn-block" @click="print">🖨 چاپ / PDF</button>
+    <button class="btn btn-ghost btn-block" @click="save">💾 ذخیره</button>
+    <button class="btn btn-ghost btn-block" @click="cancelForm">✕ انصراف</button>
+  `
+};
+
+const InvoiceListView = {
+  emits: ['edit'],
+  setup(props, { emit }) {
+    const search = ref('');
+    const filter = ref('all');
+    const currencySymbol = computed(() => CURRENCIES.find(c => c.id === store.settings.currency)?.symbol || 'ت');
+
+    const filtered = computed(() => {
+      let arr = store.invoices;
+      if (filter.value !== 'all') arr = arr.filter(i => i.status === filter.value);
+      const q = search.value.trim().toLowerCase();
+      if (q) arr = arr.filter(i => i.number.toLowerCase().includes(q) || i.buyer.name.toLowerCase().includes(q));
+      return arr;
+    });
+
+    const openDetail = (inv) => { modals.invoiceDetail = inv; };
+    const editInvoice = (inv) => { store.loadDraft(inv); emit('edit'); };
+    const duplicate = (inv) => { store.duplicateInvoice(inv.id); emit('edit'); toast.info('کپی ساخته شد'); };
+    const printInvoice = (inv) => {
+      store.loadDraft(inv);
+      nextTick(() => { setTimeout(() => window.print(), 300); });
+    };
+
+    return { store, modals, search, filter, filtered, currencySymbol, openDetail, editInvoice, duplicate, printInvoice, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="section-title"><span>📋</span><span>فاکتورها</span></div>
+
+    <div class="glass" style="padding:10px;margin-bottom:12px">
+      <input v-model="search" placeholder="🔍 جستجوی شماره یا نام..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;padding:6px 8px;font-family:inherit">
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
+      <button class="btn-sm" :style="{background: filter==='all' ? 'var(--accent)' : ''}" @click="filter='all'">همه</button>
+      <button class="btn-sm" :style="{background: filter==='pending' ? 'var(--warn)' : ''}" @click="filter='pending'">⏳ در انتظار</button>
+      <button class="btn-sm" :style="{background: filter==='paid' ? 'var(--success)' : ''}" @click="filter='paid'">✅ پرداخت‌شده</button>
+      <button class="btn-sm" :style="{background: filter==='canceled' ? 'var(--danger)' : ''}" @click="filter='canceled'">❌ لغو</button>
+    </div>
+
+    <div v-if="!filtered.length" class="empty">
+      <div class="empty-icon">📭</div>
+      فاکتوری پیدا نشد!
+    </div>
+
+    <div v-else>
+      <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
+        <div class="ic-head">
+          <div>
+            <div class="ic-num">{{ inv.number }}</div>
+            <div class="ic-buyer">{{ inv.buyer.name }}</div>
+          </div>
+          <span :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت‌شده' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
+        </div>
+        <div class="ic-foot">
+          <span class="ic-date">{{ persianDate(inv.issueDate) }}</span>
+          <span class="ic-amount">{{ formatMoney(store.calculateTotals(inv).grandTotal) }} {{ currencySymbol }}</span>
+        </div>
+      </div>
+    </div>
+  `
+};
+
+const SettingsView = {
+  setup() {
+    const ref$ = {
+      seller: computed({ get: () => store.seller, set: v => { store.seller = v; store.save(); } })
+    };
+    const setAccent = (id) => { store.settings.accent = id; store.save(); store.applyTheme(); };
+    const exportData = () => {
+      try {
+        const data = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          seller: store.seller,
+          buyers: store.buyers,
+          invoices: store.invoices,
+          settings: store.settings
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `invoice-backup-${todayKey()}.json`; a.click();
+        URL.revokeObjectURL(url);
+        toast.success('پشتیبان دانلود شد');
+      } catch (e) { toast.error('خطا: ' + e.message); }
+    };
+    const importInput = ref(null);
+    const triggerImport = () => { importInput.value.value = ''; importInput.value.click(); };
+    const onImport = (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        let raw;
+        try { raw = JSON.parse(ev.target.result); } catch { toast.error('فایل JSON خراب است'); return; }
+        if (!raw.seller || !Array.isArray(raw.invoices)) { toast.error('فایل معتبر نیست'); return; }
+        if (!confirm('داده‌های فعلی جایگزین شوند؟')) return;
+        store.seller = { ...DEFAULT_SETTINGS, ...(raw.seller || {}) };
+        store.buyers = Array.isArray(raw.buyers) ? raw.buyers : [];
+        store.invoices = Array.isArray(raw.invoices) ? raw.invoices : [];
+        store.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
+        store.save(); store.applyTheme();
+        toast.success('بازیابی انجام شد');
+      };
+      r.readAsText(f);
+    };
+    const clearAll = () => {
+      if (!confirm('⚠️ همه‌ی داده‌ها پاک شوند؟')) return;
+      if (!confirm('مطمئنی؟ برگشت‌ناپذیره!')) return;
+      ['seller', 'buyers', 'invoices', 'settings'].forEach(k => DB.remove(k));
+      store.seller = { name: '', phone: '', email: '', address: '', taxId: '', logo: null };
+      store.buyers = [];
+      store.invoices = [];
+      store.settings = { ...DEFAULT_SETTINGS };
+      store.save(); store.applyTheme();
+      toast.success('همه‌ی داده‌ها پاک شد');
+    };
+    return { store, modals, ACCENTS, CURRENCIES, setAccent, exportData, triggerImport, onImport, clearAll, importInput };
+  },
+  template: `
+    <div class="section-title"><span>⚙️</span><span>تنظیمات</span></div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🏢</span>اطلاعات پیش‌فرض فروشنده</div>
+      <div class="field"><label>نام</label><input v-model="store.seller.name" @change="store.save()"></div>
+      <div class="field-row">
+        <div class="field"><label>تلفن</label><input v-model="store.seller.phone" @change="store.save()"></div>
+        <div class="field"><label>ایمیل</label><input v-model="store.seller.email" @change="store.save()"></div>
+      </div>
+      <div class="field"><label>آدرس</label><input v-model="store.seller.address" @change="store.save()"></div>
+      <div class="field"><label>کد اقتصادی</label><input v-model="store.seller.taxId" @change="store.save()"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🔢</span>شماره‌گذاری فاکتور</div>
+      <div class="field-row">
+        <div class="field"><label>پیش‌وند</label><input v-model="store.settings.numberPrefix" @change="store.save()"></div>
+        <div class="field"><label>شماره بعدی</label><input type="number" v-model.number="store.settings.nextNumber" @change="store.save()" min="1"></div>
+      </div>
+      <div class="field"><label>نمونه</label><input :value="store.generateInvoiceNumber()" readonly></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">💰</span>مالیات پیش‌فرض</div>
+      <div class="field"><label>درصد مالیات</label><input type="number" v-model.number="store.settings.taxRate" @change="store.save()" min="0" max="100"></div>
+      <div class="setting-row" style="border:none;padding:8px 0">
+        <div><div class="lbl">اعمال خودکار مالیات</div><div class="sub">روی فاکتورهای جدید</div></div>
+        <label class="switch"><input type="checkbox" v-model="store.settings.autoTax" @change="store.save()"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🎨</span>ظاهر</div>
+      <div class="setting-row" style="border:none">
+        <div><div class="lbl">تم تاریک/روشن</div></div>
+        <label class="switch"><input type="checkbox" :checked="store.settings.theme === 'dark'" @change="store.toggleTheme()"><span class="slider"></span></label>
+      </div>
+      <div class="theme-colors">
+        <div v-for="a in ACCENTS" :key="a.id" :class="['color-dot', { active: store.settings.accent === a.id }]" :style="{ background: 'linear-gradient(135deg, ' + a.c1 + ', ' + a.c2 + ')' }" @click="setAccent(a.id)"></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">💾</span>پشتیبان‌گیری</div>
+      <button class="btn btn-primary btn-block" @click="exportData">📥 دانلود پشتیبان</button>
+      <button class="btn btn-ghost btn-block" @click="triggerImport">📤 بازیابی از فایل</button>
+      <input ref="importInput" type="file" accept=".json" style="display:none" @change="onImport">
+      <button class="btn btn-danger btn-block" @click="clearAll">🗑 پاک کردن همه‌چیز</button>
+    </div>
+  `
+};
+
+const BuyerPickerModal = {
+  setup() {
+    const pick = (b) => {
+      store.draft.buyer = { name: b.name, phone: b.phone || '', email: b.email || '', address: b.address || '', taxId: b.taxId || '' };
+      modals.buyerPicker = false;
+    };
+    const del = (id, e) => {
+      e.stopPropagation();
+      if (!confirm('این خریدار حذف شود؟')) return;
+      store.buyers = store.buyers.filter(b => b.id !== id);
+      store.save();
+    };
+    return { store, modals, pick, del };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.buyerPicker" @click.self="modals.buyerPicker = false">
+      <div class="modal">
+        <h3>📋 انتخاب خریدار</h3>
+        <div v-if="!store.buyers.length" class="empty">خریداری ذخیره نشده</div>
+        <div v-else>
+          <div v-for="b in store.buyers" :key="b.id" class="invoice-card" @click="pick(b)">
+            <div class="ic-head">
+              <div>
+                <div class="ic-buyer">{{ b.name }}</div>
+                <div class="ic-num" v-if="b.phone">{{ b.phone }}</div>
+              </div>
+              <button class="btn btn-danger btn-sm" @click="del(b.id, $event)">🗑</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-ghost" @click="modals.buyerPicker = false">بستن</button></div>
+      </div>
+    </div>
+  `
+};
+
+const InvoiceDetailModal = {
+  emits: ['edit'],
+  setup(props, { emit }) {
+    const inv = computed(() => modals.invoiceDetail);
+    const totals = computed(() => inv.value ? store.calculateTotals(inv.value) : null);
+    const currencySymbol = computed(() => CURRENCIES.find(c => c.id === (inv.value?.currency || 'toman'))?.symbol || 'ت');
+    const close = () => { modals.invoiceDetail = null; };
+    const edit = () => { store.loadDraft(inv.value); modals.invoiceDetail = null; emit('edit'); };
+    const duplicate = () => { store.duplicateInvoice(inv.value.id); modals.invoiceDetail = null; emit('edit'); toast.info('کپی ساخته شد'); };
+    const print = () => {
+      store.loadDraft(inv.value);
+      modals.invoiceDetail = null;
+      nextTick(() => { setTimeout(() => window.print(), 300); });
+    };
+    const remove = () => {
+      if (!confirm('این فاکتور حذف شود؟')) return;
+      store.deleteInvoice(inv.value.id);
+      modals.invoiceDetail = null;
+      toast.success('حذف شد');
+    };
+    const toggleStatus = () => {
+      const s = ['pending', 'paid', 'canceled'];
+      const idx = s.indexOf(inv.value.status);
+      inv.value.status = s[(idx + 1) % 3];
+      store.save();
+      toast.info('وضعیت تغییر کرد');
+    };
+    return { modals, inv, totals, currencySymbol, close, edit, duplicate, print, remove, toggleStatus, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.invoiceDetail" @click.self="close">
+      <div class="modal" v-if="inv && totals">
+        <h3>🧾 {{ inv.number }}</h3>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
+          {{ inv.buyer.name }} — {{ persianDate(inv.issueDate) }}
+        </div>
+        <div style="padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:12px">
+          <div class="totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
+          <div class="totals-row" v-if="totals.discountTotal > 0"><span>تخفیف</span><b>− {{ formatMoney(totals.discountTotal) }}</b></div>
+          <div class="totals-row" v-if="totals.tax > 0"><span>مالیات</span><b>{{ formatMoney(totals.tax) }}</b></div>
+          <div class="totals-row"><span>نهایی</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
+        </div>
+        <button class="btn btn-primary btn-block" @click="print">🖨 چاپ</button>
+        <button class="btn btn-ghost btn-block" @click="edit">✏️ ویرایش</button>
+        <button class="btn btn-ghost btn-block" @click="duplicate">📄 کپی</button>
+        <button class="btn btn-ghost btn-block" @click="toggleStatus">🔄 تغییر وضعیت (فعلی: {{ inv.status === 'paid' ? 'پرداخت‌شده' : inv.status === 'pending' ? 'در انتظار' : 'لغو' }})</button>
+        <button class="btn btn-danger btn-block" @click="remove">🗑 حذف</button>
+        <button class="btn btn-ghost btn-block" @click="close">بستن</button>
+      </div>
+    </div>
+  `
+};
+
+const ToastContainer = {
+  setup() { return { toast }; },
+  template: `
+    <div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:calc(100% - 40px);max-width:380px">
+      <div v-for="t in toast.items" :key="t.id" :class="['toast', t.type]">{{ t.msg }}</div>
+    </div>
+  `
+};
+
+/* ============================================================
+   Print Area — rendered to #print-root for @media print
+   ============================================================ */
+const PrintArea = {
+  setup() {
+    const inv = computed(() => store.draft);
+    const totals = computed(() => inv.value ? store.calculateTotals(inv.value) : null);
+    const currencySymbol = computed(() => CURRENCIES.find(c => c.id === (inv.value?.currency || 'toman'))?.symbol || 'ت');
+    return { store, inv, totals, currencySymbol, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="print-area" v-if="inv && totals">
+      <div class="p-header">
+        <div class="p-seller">
+          <div class="p-logo">
+            <img v-if="inv.seller.logo" :src="inv.seller.logo" alt="">
+            <span v-else>🏢</span>
+          </div>
+          <div class="p-seller-info">
+            <h1>{{ inv.seller.name || 'نام کسب‌وکار' }}</h1>
+            <div v-if="inv.seller.phone">📞 {{ faDigits(inv.seller.phone) }}</div>
+            <div v-if="inv.seller.email">✉️ {{ inv.seller.email }}</div>
+            <div v-if="inv.seller.address">📍 {{ inv.seller.address }}</div>
+            <div v-if="inv.seller.taxId">🆔 کد اقتصادی: {{ faDigits(inv.seller.taxId) }}</div>
+          </div>
+        </div>
+        <div class="p-invoice-meta">
+          <h2>فاکتور فروش</h2>
+          <div class="p-meta-row"><b>شماره:</b> {{ inv.number }}</div>
+          <div class="p-meta-row"><b>تاریخ صدور:</b> {{ persianDate(inv.issueDate) }}</div>
+          <div class="p-meta-row"><b>سررسید:</b> {{ persianDate(inv.dueDate) }}</div>
+          <div class="p-meta-row"><b>وضعیت:</b> {{ inv.status === 'paid' ? 'پرداخت‌شده' : inv.status === 'pending' ? 'در انتظار پرداخت' : 'لغو شده' }}</div>
+        </div>
+      </div>
+
+      <div class="p-buyer-box">
+        <h3>خریدار:</h3>
+        <div><b>{{ inv.buyer.name || '—' }}</b></div>
+        <div v-if="inv.buyer.phone">تلفن: {{ faDigits(inv.buyer.phone) }}</div>
+        <div v-if="inv.buyer.email">ایمیل: {{ inv.buyer.email }}</div>
+        <div v-if="inv.buyer.address">آدرس: {{ inv.buyer.address }}</div>
+        <div v-if="inv.buyer.taxId">کد اقتصادی: {{ faDigits(inv.buyer.taxId) }}</div>
+      </div>
+
+      <table class="p-table">
+        <thead>
+          <tr>
+            <th style="width:36px">#</th>
+            <th>شرح کالا / خدمت</th>
+            <th style="width:60px">تعداد</th>
+            <th style="width:90px">قیمت واحد</th>
+            <th style="width:60px">تخفیف</th>
+            <th style="width:100px">جمع کل</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, idx) in totals.items" :key="item.id">
+            <td class="num">{{ faDigits(idx + 1) }}</td>
+            <td>{{ item.desc || '—' }}</td>
+            <td class="num">{{ faDigits(item.qty) }}</td>
+            <td class="num">{{ formatMoney(item.unitPrice) }}</td>
+            <td class="num">{{ item.discount ? faDigits(item.discount) + '٪' : '—' }}</td>
+            <td class="num"><b>{{ formatMoney(item.total) }}</b></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="p-totals">
+        <div class="p-totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
+        <div class="p-totals-row" v-if="totals.discountTotal > 0"><span>تخفیف</span><b>− {{ formatMoney(totals.discountTotal) }} {{ currencySymbol }}</b></div>
+        <div class="p-totals-row" v-if="totals.tax > 0"><span>مالیات ({{ faDigits(inv.taxRate) }}٪)</span><b>{{ formatMoney(totals.tax) }} {{ currencySymbol }}</b></div>
+        <div class="p-totals-row"><span>مبلغ نهایی قابل پرداخت</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
+      </div>
+
+      <div v-if="inv.notes" class="p-notes">
+        <b>یادداشت:</b> {{ inv.notes }}
+      </div>
+
+      <div class="p-signature">
+        <div>مهر و امضای فروشنده</div>
+        <div class="p-sig-line">امضا</div>
+      </div>
+
+      <div class="p-footer">
+        <span>{{ inv.seller.name || '' }}</span>
+        <span>صادر شده توسط فاکتورساز</span>
+      </div>
+    </div>
+  `
+};
+
+/* ============================================================
+   App
+   ============================================================ */
+const App = {
+  components: { AppHeader, BottomNav, DashboardView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, ToastContainer },
+  setup() {
+    store.applyTheme();
+    const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
+
+    const changeTab = (id) => {
+      if (id === 'new' && !store.draft) store.createDraft();
+      currentTab.value = id;
+      localStorage.setItem('inv_tab', id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const onSaved = () => {
+      store.draft = null;
+      changeTab('invoices');
+    };
+    const onEdit = () => {
+      currentTab.value = 'new';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const onCanceled = () => { changeTab('invoices'); };
+
+    const goToNew = () => {
+      if (!store.draft) store.createDraft();
+      changeTab('new');
+    };
+
+    return { currentTab, changeTab, onSaved, onEdit, onCanceled, goToNew };
+  },
+  template: `
+    <AppHeader />
+    <main>
+      <DashboardView v-if="currentTab === 'dashboard'" @navigate="changeTab" />
+      <InvoiceForm v-else-if="currentTab === 'new'" @saved="onSaved" @canceled="onCanceled" />
+      <InvoiceListView v-else-if="currentTab === 'invoices'" @edit="onEdit" />
+      <SettingsView v-else-if="currentTab === 'settings'" />
+    </main>
+    <BottomNav :current="currentTab" @change="changeTab" />
+    <BuyerPickerModal />
+    <InvoiceDetailModal @edit="onEdit" />
+    <ToastContainer />
+  `
+};
+
+createApp(App).mount('#app');
+createApp(PrintArea).mount('#print-root');
+
+/* ============================================================
+   Service Worker registration
+   ============================================================ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW failed:', e));
+  });
+}
+</script>
+</body>
+</html>
