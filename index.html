@@ -613,8 +613,9 @@ const InvoiceForm = {
     const save = () => { if (store.saveDraft()) { toast.success('فاکتور ذخیره شد'); emit('saved'); } };
     const print = () => {
       if (!store.draft.buyer.name?.trim()) { toast.error('نام خریدار الزامی است'); return; }
-      emit('saved');
-      nextTick(() => setTimeout(() => window.print(), 300));
+      if (!store.saveDraft()) return;
+      toast.success('ذخیره شد — در حال آماده‌سازی چاپ');
+      nextTick(() => setTimeout(() => window.print(), 400));
     };
     const pickBuyer = () => { modals.buyerPicker = true; };
     const cancelForm = () => { if (confirm('از فاکتور فعلی صرف‌نظر می‌کنی؟')) { store.draft = null; emit('canceled'); } };
