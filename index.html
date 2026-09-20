@@ -205,6 +205,12 @@ input:checked+.slider:before{transform:translateX(20px);background:#fff}
   .p-footer{margin-top:30px;display:flex;justify-content:space-between;font-size:10px;color:var(--p-muted)!important;padding-top:14px;border-top:1px solid var(--p-border)}
   .p-signature{margin-top:30px;text-align:left;font-size:11px}
   .p-signature .p-sig-line{width:180px;border-top:1px solid var(--p-accent);margin-top:40px;padding-top:4px;text-align:center}
+
+  /* === OVERRIDE: visibility trick === */
+  body * { visibility: hidden !important; }
+  #print-root, #print-root * { visibility: visible !important; }
+  #print-root { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; }
+  .print-area { display: block !important; }
 }
 </style>
 <script type="importmap">
@@ -381,6 +387,8 @@ const store = reactive({
       record.createdAt = new Date().toISOString();
       this.invoices.unshift(record);
       this.settings.nextNumber = (this.settings.nextNumber || 1) + 1;
+      this.draft.id = record.id;
+      this.draft.createdAt = record.createdAt;
     }
     const exBuyer = this.buyers.find(b => b.name.trim() === d.buyer.name.trim() && b.phone === d.buyer.phone);
     if (!exBuyer && d.buyer.name.trim()) this.buyers.unshift({ id: newId(), ...d.buyer });
