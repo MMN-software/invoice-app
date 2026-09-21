@@ -363,6 +363,7 @@ const store = reactive({
   buyers: DB.get('buyers', []),
   invoices: DB.get('invoices', []),
   itemTemplates: DB.get('itemTemplates', []),
+  discountCodes: DB.get('discountCodes', []),
   settings: { ...DEFAULT_SETTINGS, ...DB.get('settings', {}) },
   draft: null,
 
@@ -371,6 +372,7 @@ const store = reactive({
     DB.set('buyers', this.buyers);
     DB.set('invoices', this.invoices);
     DB.set('itemTemplates', this.itemTemplates);
+    DB.set('discountCodes', this.discountCodes);
     DB.set('settings', this.settings);
   },
   applyTheme() {
@@ -399,6 +401,8 @@ const store = reactive({
       items: [{ id: newId(), desc: '', qty: 1, unitPrice: 0, discount: 0 }],
       taxRate: this.settings.autoTax ? this.settings.taxRate : 0,
       invoiceDiscount: 0,
+      discountCode: '',
+      discountCodeAmount: 0,
       notes: this.settings.defaultNotes,
       currency: this.settings.currency,
       template: this.settings.defaultTemplate || 'colorful'
@@ -421,6 +425,7 @@ const store = reactive({
       this.settings.nextNumber = (this.settings.nextNumber || 1) + 1;
       this.draft.id = record.id;
       this.draft.createdAt = record.createdAt;
+      if (record.discountCode) this.bumpDiscountCodeUsage(record.discountCode);
     }
     const exBuyer = this.buyers.find(b => b.name.trim() === d.buyer.name.trim() && b.phone === d.buyer.phone);
     if (!exBuyer && d.buyer.name.trim()) this.buyers.unshift({ id: newId(), ...d.buyer });
@@ -463,6 +468,58 @@ const store = reactive({
   deleteItemTemplate(id) {
     this.itemTemplates = this.itemTemplates.filter(x => x.id !== id);
     this.save();
+  },
+  addDiscountCode(cd) {
+    if (!cd || !cd.code || !cd.code.trim()) return { error: 'کد الزامی است' };
+    const code = cd.code.trim().toUpperCase();
+    if (this.discountCodes.some(x => x.code === code)) return { error: 'این کد قبلاً وجود دارد' };
+    this.discountCodes.push({
+      id: newId(), code,
+      type: cd.type === 'fixed' ? 'fixed' : 'percent',
+      value: Number(cd.value) || 0,
+      minAmount: Number(cd.minAmount) || 0,
+      maxUses: Number(cd.maxUses) || 0,
+      usedCount: 0,
+      expiresAt: cd.expiresAt || '',
+      active: cd.active !== false,
+      note: (cd.note || '').trim()
+    });
+    this.save();
+    return true;
+  },
+  updateDiscountCode(cd) {
+    if (!cd || !cd.id) return { error: 'نامعتبر' };
+    const idx = this.discountCodes.findIndex(x => x.id === cd.id);
+    if (idx === -1) return { error: 'پیدا نشد' };
+    const code = (cd.code || '').trim().toUpperCase();
+    if (!code) return { error: 'کد الزامی است' };
+    if (this.discountCodes.some((x, i) => i !== idx && x.code === code)) return { error: 'کد تکراری' };
+    this.discountCodes[idx] = { ...this.discountCodes[idx], ...cd, code };
+    this.save();
+    return true;
+  },
+  deleteDiscountCode(id) {
+    this.discountCodes = this.discountCodes.filter(x => x.id !== id);
+    this.save();
+  },
+  findDiscountCode(code) {
+    if (!code) return null;
+    const k = String(code).trim().toUpperCase();
+    return this.discountCodes.find(x => x.code === k) || null;
+  },
+  validateDiscountCode(code, subtotal) {
+    const cd = this.findDiscountCode(code);
+    if (!cd) return { ok: false, error: 'کد پیدا نشد' };
+    if (!cd.active) return { ok: false, error: 'این کد غیرفعال شده' };
+    if (cd.expiresAt && cd.expiresAt < todayKey()) return { ok: false, error: 'کد منقضی شده' };
+    if (cd.maxUses > 0 && cd.usedCount >= cd.maxUses) return { ok: false, error: 'ظرفیت استفاده این کد پر شده' };
+    if (cd.minAmount > 0 && subtotal < cd.minAmount) return { ok: false, error: 'حداقل مبلغ برای این کد ' + Math.round(cd.minAmount).toLocaleString('en-US') + ' است' };
+    const amount = cd.type === 'percent' ? subtotal * (cd.value / 100) : Math.min(cd.value, subtotal);
+    return { ok: true, code: cd.code, type: cd.type, value: cd.value, amount };
+  },
+  bumpDiscountCodeUsage(code) {
+    const cd = this.findDiscountCode(code);
+    if (cd) { cd.usedCount = (cd.usedCount || 0) + 1; this.save(); }
   },
   findBuyer(name) {
     if (!name) return null;
@@ -550,9 +607,11 @@ const store = reactive({
     const invDiscPct = Number(inv.invoiceDiscount) || 0;
     const invoiceDiscount = afterItems * (invDiscPct / 100);
     const afterAll = afterItems - invoiceDiscount;
-    const tax = afterAll * ((Number(inv.taxRate) || 0) / 100);
-    const grandTotal = afterAll + tax;
-    return { items, subtotal, discountTotal, afterItems, invoiceDiscount, afterAll, tax, grandTotal };
+    const codeAmount = Math.min(Number(inv.discountCodeAmount) || 0, afterAll);
+    const afterCode = afterAll - codeAmount;
+    const tax = afterCode * ((Number(inv.taxRate) || 0) / 100);
+    const grandTotal = afterCode + tax;
+    return { items, subtotal, discountTotal, afterItems, invoiceDiscount, afterAll, discountCodeAmount: codeAmount, afterCode, tax, grandTotal };
   }
 });
 
@@ -1017,7 +1076,7 @@ const SettingsView = {
     };
     const exportData = () => {
       try {
-        const data = { version: 3, exportedAt: new Date().toISOString(), seller: store.seller, buyers: store.buyers, invoices: store.invoices, itemTemplates: store.itemTemplates, settings: store.settings };
+        const data = { version: 4, exportedAt: new Date().toISOString(), seller: store.seller, buyers: store.buyers, invoices: store.invoices, itemTemplates: store.itemTemplates, discountCodes: store.discountCodes, settings: store.settings };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `invoice-backup-${todayKey()}.json`; a.click();
@@ -1039,6 +1098,7 @@ const SettingsView = {
         store.buyers = Array.isArray(raw.buyers) ? raw.buyers : [];
         store.invoices = Array.isArray(raw.invoices) ? raw.invoices : [];
         store.itemTemplates = Array.isArray(raw.itemTemplates) ? raw.itemTemplates : [];
+        store.discountCodes = Array.isArray(raw.discountCodes) ? raw.discountCodes : [];
         store.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
         store.save(); store.applyTheme();
         toast.success('بازیابی انجام شد');
@@ -1048,11 +1108,12 @@ const SettingsView = {
     const clearAll = () => {
       if (!confirm('⚠️ همه‌ی داده‌ها پاک شوند؟')) return;
       if (!confirm('مطمئنی؟ برگشت‌ناپذیره!')) return;
-      ['seller', 'buyers', 'invoices', 'itemTemplates', 'settings'].forEach(k => DB.remove(k));
+      ['seller', 'buyers', 'invoices', 'itemTemplates', 'discountCodes', 'settings'].forEach(k => DB.remove(k));
       store.seller = { name: '', phone: '', email: '', address: '', taxId: '', logo: null };
       store.buyers = [];
       store.invoices = [];
       store.itemTemplates = [];
+      store.discountCodes = [];
       store.settings = { ...DEFAULT_SETTINGS };
       store.save(); store.applyTheme();
       toast.success('همه‌ی داده‌ها پاک شد');
