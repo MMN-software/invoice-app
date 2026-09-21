@@ -830,7 +830,10 @@ const InvoiceForm = {
 
     <div class="form-card">
       <div class="form-title"><span class="ft-icon">📦</span>آیتم‌ها</div>
-      <button class="add-btn" @click="addItem">➕ افزودن آیتم</button>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="add-btn" style="margin:0;flex:1" @click="addItem">➕ افزودن</button>
+        <button class="add-btn" style="margin:0;flex:1" v-if="store.itemTemplates.length" @click="modals.pickTemplate = true">📦 از قالب‌ها</button>
+      </div>
       <div v-for="(item, idx) in draft.items" :key="item.id" class="item-row">
         <div class="item-num">آیتم {{ faDigits(idx + 1) }}</div>
         <div class="field" style="margin-bottom:6px"><input v-model="item.desc" placeholder="شرح کالا یا خدمت"></div>
@@ -1835,6 +1838,79 @@ const PaymentsListModal = {
   `
 };
 
+const PickTemplateModal = {
+  setup() {
+    const search = ref('');
+    const categoryFilter = ref('');
+
+    const categories = computed(() => {
+      const s = new Set();
+      store.itemTemplates.forEach(t => { if (t.category) s.add(t.category); });
+      return Array.from(s).sort();
+    });
+
+    const filtered = computed(() => {
+      let arr = store.itemTemplates;
+      if (categoryFilter.value) arr = arr.filter(t => (t.category || '') === categoryFilter.value);
+      const q = search.value.trim().toLowerCase();
+      if (q) arr = arr.filter(t => t.name.toLowerCase().includes(q));
+      return arr;
+    });
+
+    const currencySymbol = computed(() => CURRENCIES.find(x => x.id === store.draft?.currency)?.symbol || 'ت');
+
+    const pick = (t) => {
+      if (!store.draft) return;
+      store.draft.items.push({
+        id: newId(),
+        desc: t.name + (t.description ? ' — ' + t.description : ''),
+        qty: 1,
+        unitPrice: t.unitPrice || 0,
+        discount: 0
+      });
+      toast.success('«' + t.name + '» اضافه شد');
+    };
+
+    const close = () => { modals.pickTemplate = false; };
+
+    return { store, modals, search, categoryFilter, categories, filtered, currencySymbol, pick, close, formatMoney, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.pickTemplate" @click.self="close">
+      <div class="modal">
+        <h3>📦 انتخاب از قالب‌ها</h3>
+        <div class="glass" style="padding:10px;margin-bottom:10px">
+          <input v-model="search" placeholder="🔍 جستجو..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;padding:4px;font-family:inherit">
+        </div>
+        <div v-if="categories.length" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn-sm" :style="{background: !categoryFilter ? 'var(--accent)' : '', color: !categoryFilter ? '#fff' : ''}" @click="categoryFilter = ''">همه</button>
+          <button v-for="c in categories" :key="c" class="btn-sm" :style="{background: categoryFilter === c ? 'var(--accent)' : '', color: categoryFilter === c ? '#fff' : ''}" @click="categoryFilter = c">{{ c }}</button>
+        </div>
+        <div v-if="!store.itemTemplates.length" class="empty" style="padding:20px">
+          هنوز قالبی نساختی!<br>
+          <span style="font-size:11px;display:block;margin-top:8px">برو تنظیمات → 📦 قالب‌های آیتم</span>
+        </div>
+        <div v-else-if="!filtered.length" class="empty" style="padding:20px">نتیجه‌ای نیست</div>
+        <div v-else style="max-height:50vh;overflow-y:auto">
+          <div v-for="t in filtered" :key="t.id" class="invoice-card" style="padding:10px;cursor:pointer" @click="pick(t)">
+            <div class="ic-head" style="margin-bottom:0">
+              <div style="flex:1;min-width:0">
+                <div class="ic-buyer" style="font-size:13px">{{ t.name }}</div>
+                <div class="ic-num" v-if="t.category">{{ t.category }}<span v-if="t.description"> — {{ t.description }}</span></div>
+              </div>
+              <div style="text-align:left">
+                <div style="font-weight:700;font-size:12px">{{ formatMoney(t.unitPrice) }}</div>
+                <div style="font-size:10px;color:var(--muted)">{{ t.unit }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:14px"><button class="btn btn-ghost" @click="close">بستن</button></div>
+      </div>
+    </div>
+  `
+};
+
 const ManageTemplatesModal = {
   setup() {
     const form = reactive({ id: null, name: '', unitPrice: 0, unit: 'عدد', category: '', description: '' });
@@ -2181,7 +2257,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ToastContainer },
   setup() {
     store.applyTheme();
     const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
@@ -2253,6 +2329,7 @@ const App = {
     <PaymentsListModal />
     <CustomerDetailModal @edit="onEdit" />
     <ManageTemplatesModal />
+    <PickTemplateModal />
     <ToastContainer />
   `
 };
