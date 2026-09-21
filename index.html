@@ -243,28 +243,6 @@ window.addEventListener('unhandledrejection', function(e) {
   window._showDbg();
 });
 </script>
-<script>
-window._dbgErrors = [];
-window._showDbg = function() {
-  if (!window._dbgErrors.length) return;
-  var el = document.getElementById('_dbg');
-  if (!el) {
-    el = document.createElement('pre');
-    el.id = '_dbg';
-    el.style.cssText = 'position:fixed;inset:0;background:#000;color:#f00;padding:14px;font-size:11px;white-space:pre-wrap;direction:ltr;text-align:left;z-index:99999;overflow:auto;margin:0;line-height:1.4';
-    document.body.appendChild(el);
-  }
-  el.textContent = window._dbgErrors.join('\n\n---\n\n');
-};
-window.addEventListener('error', function(e) {
-  window._dbgErrors.push('JS ERROR: ' + (e.message||'?') + '\n' + (e.filename||'') + ':' + (e.lineno||'') + ':' + (e.colno||'') + '\n' + ((e.error && e.error.stack) || ''));
-  window._showDbg();
-});
-window.addEventListener('unhandledrejection', function(e) {
-  window._dbgErrors.push('PROMISE: ' + ((e.reason && e.reason.message) || e.reason) + '\n' + ((e.reason && e.reason.stack) || ''));
-  window._showDbg();
-});
-</script>
 <script type="importmap">
 { "imports": { "vue": "https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js" } }
 </script>
@@ -2382,15 +2360,7 @@ const App = {
   `
 };
 
-(function(){
-  var app = createApp(App);
-  app.config.errorHandler = function(err, vm, info) {
-    window._dbgErrors.push('VUE: ' + (err.message||'?') + '\nInfo: ' + info + '\n' + (err.stack||''));
-    window._showDbg();
-    console.error('Vue error:', err, info, vm);
-  };
-  app.mount('#app');
-})();
+createApp(App).mount('#app');
 createApp(PrintArea).mount('#print-root');
 
 if ('serviceWorker' in navigator) {
