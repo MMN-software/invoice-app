@@ -962,13 +962,12 @@ const InvoiceListView = {
     const totalFiltered = computed(() => filtered.value.filter(i => i.status !== 'canceled').reduce((s, i) => s + store.calculateTotals(i).grandTotal, 0));
     const getPaid = (inv) => store.getPaid(inv);
     const getRemaining = (inv) => store.getRemaining(inv);
-    const getDaysOverdue = (inv) => store.getDaysOverdue(inv);
 
     const openDetail = (inv) => { modals.invoiceDetail = inv; };
     const editInvoice = (inv) => { store.loadDraft(inv); emit('edit'); };
     const clearCustomer = () => emit('clearCustomer');
 
-    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, getPaid, getRemaining, getDaysOverdue, formatMoney, persianDate, faDigits };
+    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, getPaid, getRemaining, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="section-title">
@@ -1008,7 +1007,7 @@ const InvoiceListView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span v-if="getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-if="store.getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(store.getDaysOverdue(inv)) }} روز عقب</span>
           <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
@@ -1721,7 +1720,7 @@ const ReportsView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="modals.invoiceDetail = inv">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span v-if="getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-if="store.getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(store.getDaysOverdue(inv)) }} روز عقب</span>
           <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
