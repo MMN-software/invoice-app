@@ -1059,6 +1059,12 @@ const SettingsView = {
     </div>
 
     <div class="form-card">
+      <div class="form-title"><span class="ft-icon">📦</span>قالب‌های آیتم</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">محصولات و خدمات پرتکرار رو اینجا ذخیره کن تا توی فاکتور یه کلیک اضافه شن.</div>
+      <button class="btn btn-primary btn-block" @click="modals.manageTemplates = true">⚙️ مدیریت قالب‌ها ({{ faDigits(store.itemTemplates.length) }})</button>
+    </div>
+
+    <div class="form-card">
       <div class="form-title"><span class="ft-icon">🎨</span>قالب چاپ پیش‌فرض</div>
       <div class="template-select">
         <div v-for="t in TEMPLATES" :key="t.id" :class="['template-card', { active: store.settings.defaultTemplate === t.id }]" @click="store.settings.defaultTemplate = t.id; store.save()">
@@ -1829,6 +1835,127 @@ const PaymentsListModal = {
   `
 };
 
+const ManageTemplatesModal = {
+  setup() {
+    const form = reactive({ id: null, name: '', unitPrice: 0, unit: 'عدد', category: '', description: '' });
+    const search = ref('');
+
+    const reset = () => {
+      form.id = null;
+      form.name = '';
+      form.unitPrice = 0;
+      form.unit = 'عدد';
+      form.category = '';
+      form.description = '';
+    };
+
+    const filtered = computed(() => {
+      const q = search.value.trim().toLowerCase();
+      if (!q) return store.itemTemplates;
+      return store.itemTemplates.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        (t.category || '').toLowerCase().includes(q)
+      );
+    });
+
+    const categories = computed(() => {
+      const s = new Set();
+      store.itemTemplates.forEach(t => { if (t.category) s.add(t.category); });
+      return Array.from(s).sort();
+    });
+
+    const editing = computed(() => !!form.id);
+
+    const save = () => {
+      if (!form.name.trim()) { toast.error('نام قالب الزامی است'); return; }
+      if (editing.value) {
+        store.updateItemTemplate({ ...form });
+        toast.success('بروز شد');
+      } else {
+        store.addItemTemplate({ ...form });
+        toast.success('قالب اضافه شد');
+      }
+      reset();
+    };
+
+    const edit = (t) => {
+      form.id = t.id;
+      form.name = t.name;
+      form.unitPrice = t.unitPrice;
+      form.unit = t.unit;
+      form.category = t.category || '';
+      form.description = t.description || '';
+    };
+
+    const del = (id) => {
+      if (!confirm('این قالب حذف شود؟')) return;
+      store.deleteItemTemplate(id);
+      if (form.id === id) reset();
+      toast.info('حذف شد');
+    };
+
+    const close = () => { reset(); modals.manageTemplates = false; };
+
+    const units = ['عدد', 'خدمت', 'ساعت', 'روز', 'ماه', 'متر', 'کیلوگرم', 'بسته', 'جلسه', 'پروژه'];
+
+    return { store, modals, form, search, filtered, categories, editing, units, save, edit, del, reset, close, formatMoney, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.manageTemplates" @click.self="close">
+      <div class="modal">
+        <h3>📦 قالب‌های آیتم</h3>
+
+        <div class="form-card" style="padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px">{{ editing ? '✏️ ویرایش قالب' : '➕ افزودن قالب جدید' }}</div>
+          <div class="field"><label>نام *</label><input v-model="form.name" placeholder="مثلاً: طراحی سایت"></div>
+          <div class="field-row">
+            <div class="field"><label>قیمت واحد</label><input type="number" v-model.number="form.unitPrice" min="0"></div>
+            <div class="field"><label>واحد</label>
+              <select v-model="form.unit">
+                <option v-for="u in units" :key="u" :value="u">{{ u }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>دسته‌بندی</label><input v-model="form.category" placeholder="مثلاً: طراحی، پشتیبانی"></div>
+          <div class="field"><label>توضیحات</label><input v-model="form.description" placeholder="اختیاری"></div>
+          <div style="display:flex;gap:6px">
+            <button v-if="editing" class="btn btn-ghost" style="flex:1" @click="reset">انصراف</button>
+            <button class="btn btn-primary" style="flex:1" @click="save">{{ editing ? '💾 بروز' : '➕ افزودن' }}</button>
+          </div>
+        </div>
+
+        <div class="glass" style="padding:10px;margin-bottom:12px">
+          <input v-model="search" placeholder="🔍 جستجو..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;padding:4px;font-family:inherit">
+        </div>
+
+        <div v-if="!filtered.length" class="empty" style="padding:20px">
+          {{ store.itemTemplates.length ? 'نتیجه‌ای نیست' : 'هنوز قالبی نداری — بالا اضافه کن' }}
+        </div>
+        <div v-else>
+          <div v-for="t in filtered" :key="t.id" class="invoice-card" style="padding:10px;cursor:default">
+            <div class="ic-head" style="margin-bottom:6px">
+              <div style="flex:1;min-width:0">
+                <div class="ic-buyer" style="font-size:13px">{{ t.name }}</div>
+                <div class="ic-num" v-if="t.category">{{ t.category }}</div>
+              </div>
+              <div style="text-align:left">
+                <div style="font-weight:700;font-size:12px">{{ formatMoney(t.unitPrice) }}</div>
+                <div style="font-size:10px;color:var(--muted)">{{ t.unit }}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm" style="flex:1" @click="edit(t)">✏️ ویرایش</button>
+              <button class="btn-sm" style="flex:1;color:var(--danger)" @click="del(t.id)">🗑 حذف</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:14px"><button class="btn btn-ghost" @click="close">بستن</button></div>
+      </div>
+    </div>
+  `
+};
+
 const CustomerDetailModal = {
   emits: ['edit'],
   setup(props, { emit }) {
@@ -2054,7 +2181,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, ToastContainer },
   setup() {
     store.applyTheme();
     const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
@@ -2125,6 +2252,7 @@ const App = {
     <AddPaymentModal />
     <PaymentsListModal />
     <CustomerDetailModal @edit="onEdit" />
+    <ManageTemplatesModal />
     <ToastContainer />
   `
 };
