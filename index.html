@@ -795,7 +795,11 @@ const CustomersView = {
     <div class="glass" style="padding:10px;margin-bottom:12px">
       <input v-model="search" placeholder="🔍 جستجوی مشتری..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;padding:6px 8px;font-family:inherit">
     </div>
-    <div v-if="!customers.length" class="empty"><div class="empty-icon">👥</div>مشتری‌ای ثبت نشده!</div>
+    <div v-if="!customers.length" class="empty">
+      <div class="empty-icon">👥</div>
+      <span v-if="search && search.trim()">موردی مطابق جستجو پیدا نشد</span>
+      <span v-else>مشتری‌ای ثبت نشده!</span>
+    </div>
     <div v-else>
       <div v-for="c in customers" :key="c.name" class="customer-card" @click="viewCustomer(c)">
         <div class="customer-head">
@@ -1062,7 +1066,7 @@ const InvoiceListView = {
 
     <div style="font-size:11px;color:var(--muted);margin:0 4px 6px">وضعیت:</div>
     <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:4px">
-      <button class="btn-sm" :style="{background: statusFilter==='all' ? 'var(--accent)' : '', color: statusFilter==='all' ? '#fff' : ''}" @click="statusFilter='all'">همه</button>
+      <button class="btn-sm" :style="{background: statusFilter==='all' ? 'var(--accent)' : '', color: statusFilter==='all' ? '#fff' : ''}" @click="statusFilter='all'">همه وضعیت‌ها</button>
       <button class="btn-sm" :style="{background: statusFilter==='pending' ? 'var(--warn)' : ''}" @click="statusFilter='pending'">⏳ در انتظار</button>
       <button class="btn-sm" :style="{background: statusFilter==='paid' ? 'var(--success)' : ''}" @click="statusFilter='paid'">✅ پرداخت</button>
       <button class="btn-sm" :style="{background: statusFilter==='canceled' ? 'var(--danger)' : ''}" @click="statusFilter='canceled'">❌ لغو</button>
@@ -1070,7 +1074,7 @@ const InvoiceListView = {
 
     <div style="font-size:11px;color:var(--muted);margin:0 4px 6px">تاریخ:</div>
     <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
-      <button class="btn-sm" :style="{background: dateFilter==='all' ? 'var(--accent)' : '', color: dateFilter==='all' ? '#fff' : ''}" @click="dateFilter='all'">همه</button>
+      <button class="btn-sm" :style="{background: dateFilter==='all' ? 'var(--accent)' : '', color: dateFilter==='all' ? '#fff' : ''}" @click="dateFilter='all'">همه تاریخ‌ها</button>
       <button class="btn-sm" :style="{background: dateFilter==='this-month' ? 'var(--accent)' : '', color: dateFilter==='this-month' ? '#fff' : ''}" @click="dateFilter='this-month'">این ماه</button>
       <button class="btn-sm" :style="{background: dateFilter==='last-month' ? 'var(--accent)' : '', color: dateFilter==='last-month' ? '#fff' : ''}" @click="dateFilter='last-month'">ماه قبل</button>
       <button class="btn-sm" :style="{background: dateFilter==='3-months' ? 'var(--accent)' : '', color: dateFilter==='3-months' ? '#fff' : ''}" @click="dateFilter='3-months'">۳ ماه</button>
@@ -1879,16 +1883,16 @@ const ReportsView = {
             <tr v-for="m in taxMonthlyData" :key="m.month" :style="{opacity: m.count === 0 ? .35 : 1, borderBottom: '1px solid var(--border)'}">
               <td style="padding:8px;text-align:right">{{ m.name }}</td>
               <td style="padding:8px;text-align:center;font-weight:700">{{ m.count ? faDigits(m.count) : '—' }}</td>
-              <td style="padding:8px;text-align:left">{{ m.count ? formatMoney(m.sales) : '—' }}</td>
-              <td style="padding:8px;text-align:left;color:var(--accent);font-weight:700">{{ m.tax > 0 ? formatMoney(m.tax) : '—' }}</td>
+              <td style="padding:8px;text-align:left">{{ m.count ? formatMoney(m.sales) + ' ' + currencySymbol : '—' }}</td>
+              <td style="padding:8px;text-align:left;color:var(--accent);font-weight:700">{{ m.tax > 0 ? formatMoney(m.tax) + ' ' + currencySymbol : '—' }}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr style="background:color-mix(in srgb,var(--accent) 12%,transparent);font-weight:800">
               <td style="padding:10px 8px;text-align:right;color:var(--accent)">جمع سال</td>
               <td style="padding:10px 8px;text-align:center;color:var(--accent)">{{ faDigits(taxYearTotal.count) }}</td>
-              <td style="padding:10px 8px;text-align:left;color:var(--accent)">{{ formatMoney(taxYearTotal.sales) }}</td>
-              <td style="padding:10px 8px;text-align:left;color:var(--accent)">{{ formatMoney(taxYearTotal.tax) }}</td>
+              <td style="padding:10px 8px;text-align:left;color:var(--accent)">{{ formatMoney(taxYearTotal.sales) }} {{ currencySymbol }}</td>
+              <td style="padding:10px 8px;text-align:left;color:var(--accent)">{{ formatMoney(taxYearTotal.tax) }} {{ currencySymbol }}</td>
             </tr>
           </tfoot>
         </table>
