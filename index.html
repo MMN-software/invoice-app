@@ -1036,7 +1036,7 @@ const SettingsView = {
       store.save(); store.applyTheme();
       toast.success('همه‌ی داده‌ها پاک شد');
     };
-    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput };
+    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput, faDigits };
   },
   template: `
     <div class="section-title"><span>⚙️</span><span>تنظیمات</span></div>
@@ -2260,6 +2260,11 @@ const App = {
   components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ToastContainer },
   setup() {
     store.applyTheme();
+    const _urlParams = new URLSearchParams(window.location.search);
+    if (_urlParams.has('reset')) {
+      localStorage.removeItem('inv_tab');
+      history.replaceState(null, '', location.pathname);
+    }
     const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
     const customerFilter = ref('');
 
