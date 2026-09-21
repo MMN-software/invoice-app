@@ -1469,7 +1469,13 @@ const InvoiceDetailModal = {
     const paid = computed(() => inv.value ? store.getPaid(inv.value) : 0);
     const remaining = computed(() => inv.value && totals.value ? Math.max(0, totals.value.grandTotal - paid.value) : 0);
     const paymentsCount = computed(() => (inv.value?.payments || []).length);
-    const openAddPayment = () => { const id = inv.value.id; modals.invoiceDetail = null; setTimeout(() => { modals.addPayment = id; }, 50); };
+    const openAddPayment = () => {
+      const id = inv.value?.id;
+      if (!id) return;
+      modals.invoiceDetail = null;
+      modals.paymentsList = null;
+      setTimeout(() => { modals.addPayment = id; }, 100);
+    };
     const openPaymentsList = () => { modals.paymentsList = inv.value.id; };
     const close = () => { modals.invoiceDetail = null; };
     const edit = () => { store.loadDraft(inv.value); modals.invoiceDetail = null; emit('edit'); };
