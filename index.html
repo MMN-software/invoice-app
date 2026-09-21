@@ -209,6 +209,17 @@ input:checked+.slider:before{transform:translateX(20px);background:#fff}
 .goal-bar{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
 .goal-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;border-radius:6px}
 .goal-fill.done{background:linear-gradient(90deg,var(--success),#22c55e)}
+
+/* Overdue badge */
+.ic-status.overdue{background:color-mix(in srgb,var(--danger) 25%,transparent);color:var(--danger);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.alert-card{padding:14px;border-radius:16px;background:color-mix(in srgb,var(--danger) 12%,transparent);border:1px solid color-mix(in srgb,var(--danger) 35%,transparent);margin-bottom:12px;display:flex;gap:12px;align-items:center}
+.alert-card .ac-icon{font-size:28px;flex-shrink:0}
+.alert-card .ac-body{flex:1}
+.alert-card .ac-title{font-size:14px;font-weight:800;color:var(--danger);margin-bottom:4px}
+.alert-card .ac-desc{font-size:11px;color:var(--muted)}
+.alert-card.warn{background:color-mix(in srgb,var(--warn) 12%,transparent);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.alert-card.warn .ac-title{color:var(--warn)}
 </style>
 <script type="importmap">
 { "imports": { "vue": "https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js" } }
@@ -404,6 +415,27 @@ const store = reactive({
     copy.items = copy.items.map(i => ({ ...i, id: newId() }));
     this.loadDraft(copy);
   },
+  getDaysOverdue(inv) {
+    if (!inv.dueDate || inv.status !== 'pending') return 0;
+    const due = new Date(inv.dueDate);
+    const today = new Date(todayKey());
+    if (isNaN(due.getTime())) return 0;
+    const diff = Math.floor((today - due) / 86400000);
+    return diff > 0 ? diff : 0;
+  },
+  getOverdueInvoices() {
+    return this.invoices.filter(inv => this.getDaysOverdue(inv) > 0);
+  },
+  getDueSoonInvoices() {
+    return this.invoices.filter(inv => {
+      if (inv.status !== 'pending' || !inv.dueDate) return false;
+      const due = new Date(inv.dueDate);
+      const today = new Date(todayKey());
+      if (isNaN(due.getTime())) return false;
+      const diff = Math.floor((due - today) / 86400000);
+      return diff >= 0 && diff <= 3;
+    });
+  },
   getPaid(inv) {
     const list = Array.isArray(inv.payments) ? inv.payments : [];
     return list.reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -544,9 +576,12 @@ const DashboardView = {
     const monthNames = ['فرو','ارد','خرد','تیر','مرد','شهر','مهر','آبا','آذر','دی','بهم','اسف'];
     const labelForMonth = (m) => monthNames[m.month - 1] || '';
     const recentInvoices = computed(() => store.invoices.slice(0, 5));
+    const overdueList = computed(() => store.getOverdueInvoices());
+    const overdueTotal = computed(() => overdueList.value.reduce((s, i) => s + store.getRemaining(i), 0));
+    const dueSoonList = computed(() => store.getDueSoonInvoices());
     const goToInvoice = (id) => { modals.invoiceDetail = store.invoices.find(x => x.id === id); };
 
-    return { store, modals, totalPaid, totalPending, countThisMonth, currencySymbol, last6Months, maxChart, labelForMonth, recentInvoices, goToInvoice, formatMoney, persianDate, faDigits, emit };
+    return { store, modals, totalPaid, totalPending, countThisMonth, currencySymbol, last6Months, maxChart, labelForMonth, recentInvoices, goToInvoice, overdueList, overdueTotal, dueSoonList, formatMoney, persianDate, faDigits, emit };
   },
   template: `
     <div class="section-title"><span>📊</span><span>داشبورد</span></div>
@@ -555,6 +590,22 @@ const DashboardView = {
       <div class="big-stat"><div class="bs-icon">⏳</div><div class="bs-val">{{ formatMoney(totalPending) }} {{ currencySymbol }}</div><div class="bs-lbl">در انتظار</div></div>
       <div class="big-stat"><div class="bs-icon">🧾</div><div class="bs-val">{{ faDigits(countThisMonth) }}</div><div class="bs-lbl">این ماه</div></div>
       <div class="big-stat"><div class="bs-icon">📋</div><div class="bs-val">{{ faDigits(store.invoices.length) }}</div><div class="bs-lbl">کل فاکتورها</div></div>
+    </div>
+    <div v-if="overdueList.length" class="alert-card" @click="emit('navigate','invoices')" style="cursor:pointer">
+      <div class="ac-icon">🔴</div>
+      <div class="ac-body">
+        <div class="ac-title">{{ faDigits(overdueList.length) }} فاکتور عقب‌افتاده</div>
+        <div class="ac-desc">جمع باقی‌مانده: {{ formatMoney(overdueTotal) }} {{ currencySymbol }}</div>
+      </div>
+      <div style="font-size:20px;color:var(--muted)">‹</div>
+    </div>
+    <div v-if="dueSoonList.length" class="alert-card warn" @click="emit('navigate','invoices')" style="cursor:pointer">
+      <div class="ac-icon">⏰</div>
+      <div class="ac-body">
+        <div class="ac-title">{{ faDigits(dueSoonList.length) }} فاکتور نزدیک به سررسید</div>
+        <div class="ac-desc">تا ۳ روز آینده سررسید می‌شن</div>
+      </div>
+      <div style="font-size:20px;color:var(--muted)">‹</div>
     </div>
     <button class="btn btn-primary btn-block" @click="emit('navigate','new')">➕ صدور فاکتور جدید</button>
     <div class="chart-wrap" v-if="store.invoices.length">
@@ -816,12 +867,13 @@ const InvoiceListView = {
     const totalFiltered = computed(() => filtered.value.filter(i => i.status !== 'canceled').reduce((s, i) => s + store.calculateTotals(i).grandTotal, 0));
     const getPaid = (inv) => store.getPaid(inv);
     const getRemaining = (inv) => store.getRemaining(inv);
+    const getDaysOverdue = (inv) => store.getDaysOverdue(inv);
 
     const openDetail = (inv) => { modals.invoiceDetail = inv; };
     const editInvoice = (inv) => { store.loadDraft(inv); emit('edit'); };
     const clearCustomer = () => emit('clearCustomer');
 
-    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, getPaid, getRemaining, formatMoney, persianDate, faDigits };
+    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, getPaid, getRemaining, getDaysOverdue, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="section-title">
@@ -861,7 +913,8 @@ const InvoiceListView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
+          <span v-if="getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
           <span class="ic-date">{{ persianDate(inv.issueDate) }}</span>
@@ -879,6 +932,17 @@ const InvoiceListView = {
 const SettingsView = {
   setup() {
     const setAccent = (id) => { store.settings.accent = id; store.save(); store.applyTheme(); };
+    const notifStatus = computed(() => {
+      if (!('Notification' in window)) return 'پشتیبانی نمی‌شه';
+      const p = Notification.permission;
+      return p === 'granted' ? '✅ فعال' : p === 'denied' ? '❌ رد شده' : '⏳ غیرفعال';
+    });
+    const requestNotif = async () => {
+      if (!('Notification' in window)) { toast.error('مرورگرت پشتیبانی نمی‌کنه'); return; }
+      const p = await Notification.requestPermission();
+      if (p === 'granted') toast.success('نوتیفیکیشن فعال شد');
+      else toast.error('اجازه داده نشد');
+    };
     const exportData = () => {
       try {
         const data = { version: 2, exportedAt: new Date().toISOString(), seller: store.seller, buyers: store.buyers, invoices: store.invoices, settings: store.settings };
@@ -919,7 +983,7 @@ const SettingsView = {
       store.save(); store.applyTheme();
       toast.success('همه‌ی داده‌ها پاک شد');
     };
-    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, exportData, triggerImport, onImport, clearAll, importInput };
+    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput };
   },
   template: `
     <div class="section-title"><span>⚙️</span><span>تنظیمات</span></div>
@@ -960,6 +1024,14 @@ const SettingsView = {
       <div class="setting-row" style="border:none;padding:8px 0">
         <div><div class="lbl">اعمال خودکار مالیات</div></div>
         <label class="switch"><input type="checkbox" v-model="store.settings.autoTax" @change="store.save()"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🔔</span>نوتیفیکیشن</div>
+      <div class="setting-row" style="border:none">
+        <div><div class="lbl">یادآور سررسید</div><div class="sub">{{ notifStatus }}</div></div>
+        <button class="btn-sm" @click="requestNotif">فعال‌سازی</button>
       </div>
     </div>
 
@@ -1546,7 +1618,8 @@ const ReportsView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="modals.invoiceDetail = inv">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
+          <span v-if="getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
           <span class="ic-date">{{ persianDate(inv.issueDate) }}</span>
@@ -1821,7 +1894,24 @@ const App = {
     };
     const clearCustomerFilter = () => { customerFilter.value = ''; };
 
+    const checkOverdueNotifications = () => {
+      try {
+        const overdue = store.getOverdueInvoices();
+        if (!overdue.length) return;
+        const lastNotif = DB.get('lastOverdueNotif', '');
+        const today = todayKey();
+        if (lastNotif === today) return;
+        DB.set('lastOverdueNotif', today);
+        const total = overdue.reduce((s, i) => s + store.getRemaining(i), 0);
+        const msg = '⏰ ' + overdue.length + ' فاکتور عقب‌افتاده (جمع: ' + formatMoney(total) + ' ت)';
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try { new Notification('فاکتورساز — یادآور', { body: msg, dir: 'rtl', lang: 'fa' }); } catch {}
+        }
+        setTimeout(() => toast.info(msg), 1500);
+      } catch (e) { console.warn(e); }
+    };
     onMounted(() => {
+      checkOverdueNotifications();
       if (location.hash.startsWith('#share=')) {
         try {
           const inv = decodeShareLink(location.hash);
