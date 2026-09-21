@@ -821,6 +821,32 @@ const InvoiceForm = {
     if (!store.draft) store.createDraft();
     const draft = computed(() => store.draft);
     const totals = computed(() => store.calculateTotals(store.draft));
+    const codeInput = ref('');
+    const codeError = ref('');
+    const codeApplied = computed(() => !!(store.draft?.discountCode));
+
+    const applyDiscountCode = () => {
+      codeError.value = '';
+      const k = codeInput.value.trim().toUpperCase();
+      if (!k) { codeError.value = 'کد را وارد کن'; return; }
+      if (!store.draft) return;
+      const subtotalAfterInv = store.calculateTotals({ ...store.draft, discountCodeAmount: 0 }).afterAll;
+      const res = store.validateDiscountCode(k, subtotalAfterInv);
+      if (!res.ok) { codeError.value = res.error; return; }
+      store.draft.discountCode = res.code;
+      store.draft.discountCodeAmount = res.amount;
+      codeInput.value = '';
+      toast.success('کد «' + res.code + '» اعمال شد');
+    };
+
+    const removeDiscountCode = () => {
+      if (!store.draft) return;
+      store.draft.discountCode = '';
+      store.draft.discountCodeAmount = 0;
+      codeError.value = '';
+      codeInput.value = '';
+      toast.info('کد حذف شد');
+    };
     const addItem = () => store.draft.items.push({ id: newId(), desc: '', qty: 1, unitPrice: 0, discount: 0 });
     const removeItem = (id) => {
       if (store.draft.items.length <= 1) { toast.error('حداقل یک آیتم لازم است'); return; }
@@ -841,7 +867,7 @@ const InvoiceForm = {
     const pickBuyer = () => { modals.buyerPicker = true; };
     const cancelForm = () => { if (confirm('از فاکتور فعلی صرف‌نظر می‌کنی؟')) { store.draft = null; emit('canceled'); } };
     const currencySymbol = computed(() => CURRENCIES.find(c => c.id === store.draft.currency)?.symbol || 'ت');
-    return { store, modals, draft, totals, addItem, removeItem, updateItemTotal, save, print, pickBuyer, cancelForm, formatMoney, faDigits, currencySymbol, CURRENCIES, TEMPLATES };
+    return { store, modals, draft, totals, addItem, removeItem, updateItemTotal, save, print, pickBuyer, cancelForm, formatMoney, faDigits, currencySymbol, CURRENCIES, TEMPLATES, codeInput, codeError, codeApplied, applyDiscountCode, removeDiscountCode };
   },
   template: `
     <div class="section-title"><span>🧾</span><span>{{ draft.id ? 'ویرایش فاکتور' : 'فاکتور جدید' }}</span></div>
@@ -944,10 +970,27 @@ const InvoiceForm = {
           <option v-for="c in CURRENCIES" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
       </div>
+      <div class="form-card" style="padding:12px;margin-top:12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">🏷 کد تخفیف</div>
+        <div v-if="!codeApplied" style="display:flex;gap:6px">
+          <input v-model="codeInput" @keyup.enter="applyDiscountCode" placeholder="کد را وارد کن (مثلاً WELCOME10)" style="flex:1;padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:13px;outline:none;text-transform:uppercase">
+          <button class="btn btn-primary" style="padding:10px 16px" @click="applyDiscountCode">اعمال</button>
+        </div>
+        <div v-else style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--success) 12%,transparent);border:1px solid color-mix(in srgb,var(--success) 35%,transparent)">
+          <div>
+            <div style="font-weight:700;font-family:monospace;font-size:13px;color:var(--success)">✅ {{ draft.discountCode }}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">تخفیف: {{ formatMoney(totals.discountCodeAmount) }} {{ currencySymbol }}</div>
+          </div>
+          <button class="btn-sm" style="color:var(--danger)" @click="removeDiscountCode">✕ حذف</button>
+        </div>
+        <div v-if="codeError" style="color:var(--danger);font-size:11px;margin-top:6px">⚠️ {{ codeError }}</div>
+      </div>
+
       <div class="totals-box">
         <div class="totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
         <div class="totals-row" v-if="totals.discountTotal > 0"><span>تخفیف آیتم‌ها</span><b style="color:var(--danger)">− {{ formatMoney(totals.discountTotal) }} {{ currencySymbol }}</b></div>
         <div class="totals-row" v-if="totals.invoiceDiscount > 0"><span>تخفیف کل ({{ faDigits(draft.invoiceDiscount) }}٪)</span><b style="color:var(--danger)">− {{ formatMoney(totals.invoiceDiscount) }} {{ currencySymbol }}</b></div>
+        <div class="totals-row" v-if="totals.discountCodeAmount > 0"><span>🏷 کد {{ draft.discountCode }}</span><b style="color:var(--danger)">− {{ formatMoney(totals.discountCodeAmount) }} {{ currencySymbol }}</b></div>
         <div class="totals-row" v-if="totals.tax > 0"><span>مالیات ({{ faDigits(draft.taxRate) }}٪)</span><b>{{ formatMoney(totals.tax) }} {{ currencySymbol }}</b></div>
         <div class="totals-row"><span>مبلغ نهایی</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
       </div>
@@ -1483,6 +1526,7 @@ const InvoiceDetailModal = {
           <div class="totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
           <div class="totals-row" v-if="totals.discountTotal > 0"><span>تخفیف آیتم‌ها</span><b>− {{ formatMoney(totals.discountTotal) }}</b></div>
           <div class="totals-row" v-if="totals.invoiceDiscount > 0"><span>تخفیف کل</span><b>− {{ formatMoney(totals.invoiceDiscount) }}</b></div>
+          <div class="totals-row" v-if="totals.discountCodeAmount > 0"><span>🏷 {{ inv.discountCode }}</span><b>− {{ formatMoney(totals.discountCodeAmount) }}</b></div>
           <div class="totals-row" v-if="totals.tax > 0"><span>مالیات</span><b>{{ formatMoney(totals.tax) }}</b></div>
           <div class="totals-row"><span>نهایی</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
         </div>
@@ -2456,6 +2500,7 @@ const PrintArea = {
         <div class="p-totals-row"><span>جمع کل</span><b>{{ formatMoney(totals.subtotal) }} {{ currencySymbol }}</b></div>
         <div class="p-totals-row" v-if="totals.discountTotal > 0"><span>تخفیف آیتم‌ها</span><b>− {{ formatMoney(totals.discountTotal) }} {{ currencySymbol }}</b></div>
         <div class="p-totals-row" v-if="totals.invoiceDiscount > 0"><span>تخفیف کل ({{ faDigits(inv.invoiceDiscount) }}٪)</span><b>− {{ formatMoney(totals.invoiceDiscount) }} {{ currencySymbol }}</b></div>
+        <div class="p-totals-row" v-if="totals.discountCodeAmount > 0"><span>کد تخفیف {{ inv.discountCode }}</span><b>− {{ formatMoney(totals.discountCodeAmount) }} {{ currencySymbol }}</b></div>
         <div class="p-totals-row" v-if="totals.tax > 0"><span>مالیات ({{ faDigits(inv.taxRate) }}٪)</span><b>{{ formatMoney(totals.tax) }} {{ currencySymbol }}</b></div>
         <div class="p-totals-row"><span>مبلغ نهایی قابل پرداخت</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
       </div>
