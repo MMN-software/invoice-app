@@ -1007,7 +1007,7 @@ const InvoiceListView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span v-if="store.getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(store.getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-if="0 > 0" class="ic-status overdue">🔴 {{ faDigits(0) }} روز عقب</span>
           <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
@@ -1720,7 +1720,7 @@ const ReportsView = {
       <div v-for="inv in filtered" :key="inv.id" class="invoice-card" @click="modals.invoiceDetail = inv">
         <div class="ic-head">
           <div><div class="ic-num">{{ inv.number }}</div><div class="ic-buyer">{{ inv.buyer.name }}</div></div>
-          <span v-if="store.getDaysOverdue(inv) > 0" class="ic-status overdue">🔴 {{ faDigits(store.getDaysOverdue(inv)) }} روز عقب</span>
+          <span v-if="0 > 0" class="ic-status overdue">🔴 {{ faDigits(0) }} روز عقب</span>
           <span v-else :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅ پرداخت' : inv.status === 'pending' ? '⏳ در انتظار' : '❌ لغو' }}</span>
         </div>
         <div class="ic-foot">
