@@ -399,6 +399,38 @@ const store = reactive({
     copy.items = copy.items.map(i => ({ ...i, id: newId() }));
     this.loadDraft(copy);
   },
+  getPaid(inv) {
+    const list = Array.isArray(inv.payments) ? inv.payments : [];
+    return list.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  },
+  getRemaining(inv) {
+    const total = this.calculateTotals(inv).grandTotal;
+    return Math.max(0, total - this.getPaid(inv));
+  },
+  addPayment(invoiceId, payment) {
+    const inv = this.invoices.find(x => x.id === invoiceId);
+    if (!inv) return false;
+    if (!Array.isArray(inv.payments)) inv.payments = [];
+    inv.payments.push({
+      id: newId(),
+      date: payment.date || todayKey(),
+      amount: Number(payment.amount) || 0,
+      method: payment.method || 'cash',
+      note: payment.note || ''
+    });
+    const remaining = this.getRemaining(inv);
+    if (remaining <= 0) inv.status = 'paid';
+    this.save();
+    return true;
+  },
+  deletePayment(invoiceId, paymentId) {
+    const inv = this.invoices.find(x => x.id === invoiceId);
+    if (!inv || !Array.isArray(inv.payments)) return false;
+    inv.payments = inv.payments.filter(p => p.id !== paymentId);
+    if (inv.status === 'paid' && this.getRemaining(inv) > 0) inv.status = 'pending';
+    this.save();
+    return true;
+  },
   calculateTotals(inv) {
     const items = (inv.items || []).map(i => {
       const qty = Number(i.qty) || 0;
@@ -424,7 +456,9 @@ const modals = reactive({
   settings: false,
   buyerPicker: false,
   invoiceDetail: null,
-  sharedInvoice: null
+  sharedInvoice: null,
+  addPayment: null,
+  paymentsList: null
 });
 
 /* ===== Components ===== */
@@ -775,12 +809,14 @@ const InvoiceListView = {
     });
 
     const totalFiltered = computed(() => filtered.value.filter(i => i.status !== 'canceled').reduce((s, i) => s + store.calculateTotals(i).grandTotal, 0));
+    const getPaid = (inv) => store.getPaid(inv);
+    const getRemaining = (inv) => store.getRemaining(inv);
 
     const openDetail = (inv) => { modals.invoiceDetail = inv; };
     const editInvoice = (inv) => { store.loadDraft(inv); emit('edit'); };
     const clearCustomer = () => emit('clearCustomer');
 
-    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, formatMoney, persianDate, faDigits };
+    return { store, modals, search, statusFilter, dateFilter, filtered, totalFiltered, currencySymbol, openDetail, editInvoice, clearCustomer, getPaid, getRemaining, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="section-title">
@@ -825,6 +861,10 @@ const InvoiceListView = {
         <div class="ic-foot">
           <span class="ic-date">{{ persianDate(inv.issueDate) }}</span>
           <span class="ic-amount">{{ formatMoney(store.calculateTotals(inv).grandTotal) }} {{ currencySymbol }}</span>
+        </div>
+        <div v-if="inv.payments && inv.payments.length" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;font-size:11px">
+          <span style="color:var(--success)">✅ پرداخت‌شده: {{ formatMoney(getPaid(inv)) }}</span>
+          <span style="color:var(--warn)">باقی: {{ formatMoney(getRemaining(inv)) }}</span>
         </div>
       </div>
     </div>
@@ -1150,6 +1190,11 @@ const InvoiceDetailModal = {
     const inv = computed(() => modals.invoiceDetail);
     const totals = computed(() => inv.value ? store.calculateTotals(inv.value) : null);
     const currencySymbol = computed(() => CURRENCIES.find(c => c.id === (inv.value?.currency || 'toman'))?.symbol || 'ت');
+    const paid = computed(() => inv.value ? store.getPaid(inv.value) : 0);
+    const remaining = computed(() => inv.value && totals.value ? Math.max(0, totals.value.grandTotal - paid.value) : 0);
+    const paymentsCount = computed(() => (inv.value?.payments || []).length);
+    const openAddPayment = () => { modals.addPayment = inv.value.id; };
+    const openPaymentsList = () => { modals.paymentsList = inv.value.id; };
     const close = () => { modals.invoiceDetail = null; };
     const edit = () => { store.loadDraft(inv.value); modals.invoiceDetail = null; emit('edit'); };
     const duplicate = () => { store.duplicateInvoice(inv.value.id); modals.invoiceDetail = null; emit('edit'); toast.info('کپی ساخته شد'); };
@@ -1196,7 +1241,7 @@ const InvoiceDetailModal = {
       else toast.info('دستی کپی کن');
     };
 
-    return { store, modals, inv, totals, currencySymbol, close, edit, duplicate, print, remove, toggleStatus, sharing, shareImage, shareLink, genLink, copyLink, formatMoney, persianDate, faDigits };
+    return { store, modals, inv, totals, currencySymbol, paid, remaining, paymentsCount, openAddPayment, openPaymentsList, close, edit, duplicate, print, remove, toggleStatus, sharing, shareImage, shareLink, genLink, copyLink, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="modal-bg" v-if="modals.invoiceDetail" @click.self="close">
@@ -1209,6 +1254,23 @@ const InvoiceDetailModal = {
           <div class="totals-row" v-if="totals.invoiceDiscount > 0"><span>تخفیف کل</span><b>− {{ formatMoney(totals.invoiceDiscount) }}</b></div>
           <div class="totals-row" v-if="totals.tax > 0"><span>مالیات</span><b>{{ formatMoney(totals.tax) }}</b></div>
           <div class="totals-row"><span>نهایی</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
+        </div>
+
+        <div v-if="paid > 0 || paymentsCount > 0" style="padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--success) 12%,transparent);border:1px solid color-mix(in srgb,var(--success) 30%,transparent);margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+            <span>پرداخت‌شده: <b style="color:var(--success)">{{ formatMoney(paid) }} {{ currencySymbol }}</b></span>
+            <span>{{ faDigits(paymentsCount) }} پرداخت</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+            <span>باقی‌مانده:</span>
+            <b :style="{color: remaining > 0 ? 'var(--warn)' : 'var(--success)'}">{{ formatMoney(remaining) }} {{ currencySymbol }}</b>
+          </div>
+          <div class="goal-bar" style="height:6px"><div class="goal-fill" :class="{done: remaining === 0}" :style="{width: Math.min(100, (paid / totals.grandTotal) * 100) + '%'}"></div></div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="btn btn-ghost" style="flex:1;color:var(--success);border-color:color-mix(in srgb,var(--success) 40%,transparent)" @click="openAddPayment">💳 پرداخت</button>
+          <button class="btn btn-ghost" style="flex:1" @click="openPaymentsList">📋 لیست ({{ faDigits(paymentsCount) }})</button>
         </div>
 
         <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -1490,6 +1552,155 @@ const ReportsView = {
   `
 };
 
+const AddPaymentModal = {
+  setup() {
+    const amount = ref(0);
+    const date = ref('');
+    const method = ref('cash');
+    const note = ref('');
+
+    const inv = computed(() => {
+      if (!modals.addPayment) return null;
+      return store.invoices.find(x => x.id === modals.addPayment);
+    });
+    const totals = computed(() => inv.value ? store.calculateTotals(inv.value) : null);
+    const paid = computed(() => inv.value ? store.getPaid(inv.value) : 0);
+    const remaining = computed(() => inv.value && totals.value ? Math.max(0, totals.value.grandTotal - paid.value) : 0);
+    const currencySymbol = computed(() => CURRENCIES.find(x => x.id === (inv.value?.currency || 'toman'))?.symbol || 'ت');
+
+    const reset = () => {
+      amount.value = 0;
+      date.value = todayKey();
+      method.value = 'cash';
+      note.value = '';
+    };
+
+    // وقتی مودال باز می‌شه، مقدار پیش‌فرض = کل باقی‌مانده
+    const init = () => {
+      reset();
+      if (remaining.value > 0) amount.value = Math.round(remaining.value);
+    };
+
+    const save = () => {
+      if (!inv.value) return;
+      if (!amount.value || amount.value <= 0) { toast.error('مبلغ باید بیشتر از صفر باشد'); return; }
+      if (amount.value > remaining.value + 1) { toast.error('مبلغ بیشتر از باقی‌مانده است'); return; }
+      store.addPayment(inv.value.id, { amount: amount.value, date: date.value, method: method.value, note: note.value });
+      toast.success('پرداخت ثبت شد');
+      if (modals.invoiceDetail) {
+        modals.invoiceDetail = store.invoices.find(x => x.id === modals.invoiceDetail.id) || modals.invoiceDetail;
+      }
+      modals.addPayment = null;
+    };
+
+    const methods = [
+      { id: 'cash', name: '💵 نقدی' },
+      { id: 'card', name: '💳 کارت' },
+      { id: 'transfer', name: '🏦 انتقال' },
+      { id: 'crypto', name: '🪙 ارز دیجیتال' },
+      { id: 'other', name: '📌 سایر' }
+    ];
+
+    return { store, modals, inv, totals, paid, remaining, currencySymbol, amount, date, method, note, methods, reset, init, save, formatMoney, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.addPayment && inv && totals" @click.self="modals.addPayment = null">
+      <div class="modal" @vue:mounted="init">
+        <h3>💳 ثبت پرداخت — {{ inv.number }}</h3>
+
+        <div style="padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:14px">
+          <div class="totals-row"><span>مبلغ فاکتور</span><b>{{ formatMoney(totals.grandTotal) }} {{ currencySymbol }}</b></div>
+          <div class="totals-row"><span>پرداخت‌شده</span><b style="color:var(--success)">{{ formatMoney(paid) }} {{ currencySymbol }}</b></div>
+          <div class="totals-row"><span>باقی‌مانده</span><b style="color:var(--warn)">{{ formatMoney(remaining) }} {{ currencySymbol }}</b></div>
+        </div>
+
+        <div class="field">
+          <label>مبلغ پرداخت *</label>
+          <input type="number" v-model.number="amount" min="0" :max="remaining" autofocus>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="btn-sm" style="flex:1" @click="amount = Math.round(remaining / 2)">۵۰٪</button>
+          <button class="btn-sm" style="flex:1" @click="amount = Math.round(remaining)">کل</button>
+        </div>
+        <div class="field"><label>تاریخ</label><input type="date" v-model="date"></div>
+        <div class="field">
+          <label>روش پرداخت</label>
+          <select v-model="method">
+            <option v-for="m in methods" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+        </div>
+        <div class="field"><label>یادداشت</label><input v-model="note" placeholder="اختیاری"></div>
+
+        <div class="modal-actions">
+          <button class="btn btn-ghost" @click="modals.addPayment = null">لغو</button>
+          <button class="btn btn-primary" @click="save">ثبت</button>
+        </div>
+      </div>
+    </div>
+  `
+};
+
+const PaymentsListModal = {
+  setup() {
+    const inv = computed(() => {
+      if (!modals.paymentsList) return null;
+      return store.invoices.find(x => x.id === modals.paymentsList) || null;
+    });
+    const payments = computed(() => (inv.value?.payments || []).slice().sort((a,b) => b.date < a.date ? -1 : 1));
+    const total = computed(() => inv.value ? store.calculateTotals(inv.value).grandTotal : 0);
+    const paid = computed(() => inv.value ? store.getPaid(inv.value) : 0);
+    const remaining = computed(() => Math.max(0, total.value - paid.value));
+    const currencySymbol = computed(() => CURRENCIES.find(x => x.id === (inv.value?.currency || 'toman'))?.symbol || 'ت');
+
+    const methodLabel = (m) => ({ cash: '💵 نقدی', card: '💳 کارت', transfer: '🏦 انتقال', crypto: '🪙 ارز دیجیتال', other: '📌 سایر' }[m] || '💵 نقدی');
+
+    const del = (pid) => {
+      if (!confirm('این پرداخت حذف شود؟')) return;
+      store.deletePayment(inv.value.id, pid);
+      toast.info('حذف شد');
+    };
+    const add = () => {
+      modals.addPayment = inv.value.id;
+    };
+    const close = () => { modals.paymentsList = null; };
+
+    return { store, modals, inv, payments, total, paid, remaining, currencySymbol, methodLabel, del, add, close, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.paymentsList && inv" @click.self="close">
+      <div class="modal">
+        <h3>💳 پرداخت‌ها — {{ inv.number }}</h3>
+
+        <div style="padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:14px">
+          <div class="totals-row"><span>مبلغ فاکتور</span><b>{{ formatMoney(total) }} {{ currencySymbol }}</b></div>
+          <div class="totals-row"><span>پرداخت‌شده</span><b style="color:var(--success)">{{ formatMoney(paid) }} {{ currencySymbol }}</b></div>
+          <div class="totals-row"><span>باقی‌مانده</span><b :style="{color: remaining > 0 ? 'var(--warn)' : 'var(--success)'}">{{ formatMoney(remaining) }} {{ currencySymbol }}</b></div>
+        </div>
+
+        <button class="btn btn-primary btn-block" @click="add">➕ ثبت پرداخت جدید</button>
+
+        <div v-if="!payments.length" class="empty" style="padding:20px">هنوز پرداختی ثبت نشده</div>
+        <div v-else>
+          <div v-for="p in payments" :key="p.id" class="invoice-card" style="cursor:default">
+            <div class="ic-head">
+              <div>
+                <div class="ic-buyer">{{ formatMoney(p.amount) }} {{ currencySymbol }}</div>
+                <div class="ic-num">{{ persianDate(p.date) }} — {{ methodLabel(p.method) }}</div>
+              </div>
+              <button class="btn btn-danger btn-sm" @click="del(p.id)">🗑</button>
+            </div>
+            <div v-if="p.note" class="ic-foot" style="border:none;padding-top:4px">
+              <span style="font-size:11px;color:var(--muted)">{{ p.note }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions"><button class="btn btn-ghost" @click="close">بستن</button></div>
+      </div>
+    </div>
+  `
+};
+
 const ToastContainer = {
   setup() { return { toast }; },
   template: `
@@ -1582,7 +1793,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, ToastContainer },
   setup() {
     store.applyTheme();
     const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
@@ -1633,6 +1844,8 @@ const App = {
     <BuyerPickerModal />
     <InvoiceDetailModal @edit="onEdit" />
     <SharedInvoiceModal />
+    <AddPaymentModal />
+    <PaymentsListModal />
     <ToastContainer />
   `
 };
