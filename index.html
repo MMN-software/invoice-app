@@ -415,6 +415,24 @@ const store = reactive({
     copy.items = copy.items.map(i => ({ ...i, id: newId() }));
     this.loadDraft(copy);
   },
+  findBuyer(name) {
+    if (!name) return null;
+    return this.buyers.find(b => b.name.trim() === name.trim()) || null;
+  },
+  upsertBuyer(buyer) {
+    if (!buyer || !buyer.name || !buyer.name.trim()) return false;
+    const idx = this.buyers.findIndex(b => b.name.trim() === buyer.name.trim() && (b.phone || '') === (buyer.phone || ''));
+    if (idx > -1) this.buyers[idx] = { ...this.buyers[idx], ...buyer };
+    else this.buyers.unshift({ id: newId(), ...buyer });
+    this.save();
+    return true;
+  },
+  renameBuyerInInvoices(oldName, newBuyer) {
+    this.invoices.forEach(inv => {
+      if ((inv.buyer.name || '').trim() === oldName.trim()) inv.buyer = { ...inv.buyer, ...newBuyer };
+    });
+    this.save();
+  },
   getDaysOverdue(inv) {
     if (!inv.dueDate || inv.status !== 'pending') return 0;
     const due = new Date(inv.dueDate);
@@ -495,7 +513,8 @@ const modals = reactive({
   invoiceDetail: null,
   sharedInvoice: null,
   addPayment: null,
-  paymentsList: null
+  paymentsList: null,
+  customerDetail: null
 });
 
 /* ===== Components ===== */
