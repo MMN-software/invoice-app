@@ -580,7 +580,8 @@ const store = reactive({
       date: payment.date || todayKey(),
       amount: Number(payment.amount) || 0,
       method: payment.method || 'cash',
-      note: payment.note || ''
+      note: payment.note || '',
+      receipt: payment.receipt || null
     });
     const remaining = this.getRemaining(inv);
     if (remaining <= 0) inv.status = 'paid';
