@@ -1476,16 +1476,16 @@ const InvoiceDetailModal = {
       modals.paymentsList = null;
       setTimeout(() => { modals.addPayment = id; }, 100);
     };
-    const openPaymentsList = () => { modals.paymentsList = inv.value.id; };
+    const openPaymentsList = () => { modals.paymentsList = inv.value?.id || ""; };
     const close = () => { modals.invoiceDetail = null; };
     const edit = () => { store.loadDraft(inv.value); modals.invoiceDetail = null; emit('edit'); };
-    const duplicate = () => { store.duplicateInvoice(inv.value.id); modals.invoiceDetail = null; emit('edit'); toast.info('کپی ساخته شد'); };
+    const duplicate = () => { store.duplicateInvoice(inv.value?.id || ""); modals.invoiceDetail = null; emit('edit'); toast.info('کپی ساخته شد'); };
     const print = () => {
       store.loadDraft(inv.value);
       modals.invoiceDetail = null;
       nextTick(() => setTimeout(() => window._printInvoice(), 300));
     };
-    const remove = () => { if (!confirm('این فاکتور حذف شود؟')) return; store.deleteInvoice(inv.value.id); modals.invoiceDetail = null; toast.success('حذف شد'); };
+    const remove = () => { if (!confirm('این فاکتور حذف شود؟')) return; store.deleteInvoice(inv.value?.id || ""); modals.invoiceDetail = null; toast.success('حذف شد'); };
     const toggleStatus = () => { const s = ['pending', 'paid', 'canceled']; const i = s.indexOf(inv.value.status); inv.value.status = s[(i + 1) % 3]; store.save(); toast.info('وضعیت تغییر کرد'); };
 
     const sharing = ref(false);
@@ -2009,7 +2009,7 @@ const AddPaymentModal = {
       if (!inv.value) return;
       if (!amount.value || amount.value <= 0) { toast.error('مبلغ باید بیشتر از صفر باشد'); return; }
       if (amount.value > remaining.value + 1) { toast.error('مبلغ بیشتر از باقی‌مانده است'); return; }
-      store.addPayment(inv.value.id, { amount: amount.value, date: date.value, method: method.value, note: note.value, receipt: receipt.value });
+      store.addPayment(inv.value?.id || "", { amount: amount.value, date: date.value, method: method.value, note: note.value, receipt: receipt.value });
       toast.success('پرداخت ثبت شد');
       if (modals.invoiceDetail) {
         modals.invoiceDetail = store.invoices.find(x => x.id === modals.invoiceDetail.id) || modals.invoiceDetail;
@@ -2093,12 +2093,12 @@ const PaymentsListModal = {
 
     const del = (pid) => {
       if (!confirm('این پرداخت حذف شود؟')) return;
-      store.deletePayment(inv.value.id, pid);
+      store.deletePayment(inv.value?.id || "", pid);
       toast.info('حذف شد');
     };
     const add = () => {
       modals.paymentsList = null;
-      setTimeout(() => { modals.addPayment = inv.value.id; }, 50);
+      setTimeout(() => { modals.addPayment = inv.value?.id || ""; }, 50);
     };
     const close = () => { modals.paymentsList = null; };
     const viewReceipt = (src) => { modals.viewReceipt = src; };
