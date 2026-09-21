@@ -1798,6 +1798,139 @@ const PaymentsListModal = {
   `
 };
 
+const CustomerDetailModal = {
+  emits: ['edit'],
+  setup(props, { emit }) {
+    const editMode = ref(false);
+    const form = reactive({ name: '', phone: '', email: '', address: '', taxId: '' });
+    const currencySymbol = computed(() => CURRENCIES.find(x => x.id === store.settings.currency)?.symbol || 'ت');
+    const customerName = computed(() => modals.customerDetail);
+    const contact = computed(() => customerName.value ? store.findBuyer(customerName.value) : null);
+    const invoices = computed(() => {
+      if (!customerName.value) return [];
+      return store.invoices.filter(i => (i.buyer.name || '').trim() === customerName.value.trim());
+    });
+    const stats = computed(() => {
+      let total = 0, paid = 0, pending = 0;
+      invoices.value.forEach(i => {
+        const t = store.calculateTotals(i).grandTotal;
+        if (i.status === 'paid') { paid += t; total += t; }
+        else if (i.status === 'pending') { pending += t; total += t; }
+      });
+      const validCount = invoices.value.filter(i => i.status !== 'canceled').length;
+      return { total, paid, pending, count: invoices.value.length, avg: validCount ? total / validCount : 0 };
+    });
+    const initial = computed(() => (customerName.value || '?').trim().charAt(0));
+    const sortedInvoices = computed(() => [...invoices.value].sort((a, b) => (a.issueDate < b.issueDate ? 1 : -1)));
+    const startEdit = () => {
+      const info = contact.value || { name: customerName.value, phone: '', email: '', address: '', taxId: '' };
+      form.name = info.name || customerName.value;
+      form.phone = info.phone || '';
+      form.email = info.email || '';
+      form.address = info.address || '';
+      form.taxId = info.taxId || '';
+      editMode.value = true;
+    };
+    const cancelEdit = () => { editMode.value = false; };
+    const saveEdit = () => {
+      if (!form.name.trim()) { toast.error('نام نمی‌تواند خالی باشد'); return; }
+      const oldName = customerName.value;
+      const newName = form.name.trim();
+      store.upsertBuyer({ name: newName, phone: form.phone, email: form.email, address: form.address, taxId: form.taxId });
+      if (oldName !== newName) store.renameBuyerInInvoices(oldName, { name: newName, phone: form.phone, email: form.email, address: form.address, taxId: form.taxId });
+      modals.customerDetail = newName;
+      editMode.value = false;
+      toast.success('ذخیره شد');
+    };
+    const close = () => { modals.customerDetail = null; };
+    const callPhone = () => {
+      const ph = contact.value?.phone;
+      if (!ph) { toast.error('شماره ثبت نشده'); return; }
+      window.location.href = 'tel:' + ph;
+    };
+    const sendEmail = () => {
+      const em = contact.value?.email;
+      if (!em) { toast.error('ایمیل ثبت نشده'); return; }
+      window.location.href = 'mailto:' + em;
+    };
+    const newInvoiceForCustomer = () => {
+      store.createDraft();
+      store.draft.buyer = { name: customerName.value, phone: contact.value?.phone || '', email: contact.value?.email || '', address: contact.value?.address || '', taxId: contact.value?.taxId || '' };
+      modals.customerDetail = null;
+      emit('edit');
+    };
+    const openInvoice = (inv) => { modals.customerDetail = null; modals.invoiceDetail = inv; };
+    const shareCustomer = async () => {
+      const ct = contact.value;
+      if (!ct) { toast.error('اطلاعات مشتری ثبت نشده'); return; }
+      const text = '👤 ' + ct.name + '\n' + (ct.phone ? '📞 ' + ct.phone + '\n' : '') + (ct.email ? '✉️ ' + ct.email + '\n' : '') + '\n📊 ' + stats.value.count + ' فاکتور — ' + formatMoney(stats.value.total) + ' ' + currencySymbol.value;
+      if (navigator.share) { try { await navigator.share({ title: ct.name, text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+      if (navigator.clipboard) { try { await navigator.clipboard.writeText(text); toast.success('کپی شد'); return; } catch {} }
+      toast.info('ممکن نشد');
+    };
+    return { store, modals, editMode, form, customerName, contact, invoices, sortedInvoices, stats, initial, currencySymbol,
+      startEdit, cancelEdit, saveEdit, close, callPhone, sendEmail, newInvoiceForCustomer, openInvoice, shareCustomer,
+      formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.customerDetail && customerName" @click.self="close">
+      <div class="modal" v-if="!editMode">
+        <div style="text-align:center;padding:8px 0 16px">
+          <div class="customer-avatar" style="width:70px;height:70px;border-radius:20px;font-size:28px;margin:0 auto 12px">{{ initial }}</div>
+          <div style="font-size:19px;font-weight:800">{{ customerName }}</div>
+          <div v-if="contact && contact.phone" style="font-size:12px;color:var(--muted);margin-top:4px">📞 {{ faDigits(contact.phone) }}</div>
+        </div>
+        <div class="big-stats" style="margin-bottom:14px">
+          <div class="big-stat"><div class="bs-icon">📋</div><div class="bs-val">{{ faDigits(stats.count) }}</div><div class="bs-lbl">فاکتور</div></div>
+          <div class="big-stat"><div class="bs-icon">💰</div><div class="bs-val">{{ formatMoney(stats.total) }}</div><div class="bs-lbl">مجموع</div></div>
+          <div class="big-stat"><div class="bs-icon">✅</div><div class="bs-val" style="color:var(--success)">{{ formatMoney(stats.paid) }}</div><div class="bs-lbl">دریافت</div></div>
+          <div class="big-stat"><div class="bs-icon">⏳</div><div class="bs-val" style="color:var(--warn)">{{ formatMoney(stats.pending) }}</div><div class="bs-lbl">در انتظار</div></div>
+        </div>
+        <div style="padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:14px;font-size:12px;line-height:1.9">
+          <div v-if="contact && contact.email"><b>✉️</b> {{ contact.email }}</div>
+          <div v-if="contact && contact.address"><b>📍</b> {{ contact.address }}</div>
+          <div v-if="contact && contact.taxId"><b>🆔</b> {{ faDigits(contact.taxId) }}</div>
+          <div v-if="!contact || (!contact.email && !contact.address && !contact.taxId)" style="color:var(--muted)">اطلاعات تکمیلی نیست</div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">میانگین: <b style="color:var(--text)">{{ formatMoney(stats.avg) }} {{ currencySymbol }}</b></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="btn btn-primary" style="flex:1" @click="newInvoiceForCustomer">➕ فاکتور جدید</button>
+          <button class="btn btn-ghost" style="flex:1" @click="startEdit">✏️ ویرایش</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="btn btn-ghost" style="flex:1" @click="callPhone">📞</button>
+          <button class="btn btn-ghost" style="flex:1" @click="sendEmail">✉️</button>
+          <button class="btn btn-ghost" style="flex:1" @click="shareCustomer">📤</button>
+        </div>
+        <div class="section-title" style="margin:0 0 8px"><span>📋</span><span>فاکتورها ({{ faDigits(stats.count) }})</span></div>
+        <div v-if="!sortedInvoices.length" class="empty" style="padding:20px">فاکتوری نیست</div>
+        <div v-else>
+          <div v-for="inv in sortedInvoices" :key="inv.id" class="invoice-card" @click="openInvoice(inv)" style="padding:10px">
+            <div class="ic-head" style="margin-bottom:6px">
+              <div><div class="ic-num">{{ inv.number }}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">{{ persianDate(inv.issueDate) }}</div></div>
+              <span :class="['ic-status', inv.status]">{{ inv.status === 'paid' ? '✅' : inv.status === 'pending' ? '⏳' : '❌' }}</span>
+            </div>
+            <div style="text-align:left;font-weight:700;font-size:13px">{{ formatMoney(store.calculateTotals(inv).grandTotal) }} {{ currencySymbol }}</div>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:14px"><button class="btn btn-ghost" @click="close">بستن</button></div>
+      </div>
+      <div class="modal" v-else>
+        <h3>✏️ ویرایش مشتری</h3>
+        <div class="field"><label>نام *</label><input v-model="form.name"></div>
+        <div class="field"><label>تلفن</label><input v-model="form.phone"></div>
+        <div class="field"><label>ایمیل</label><input v-model="form.email"></div>
+        <div class="field"><label>آدرس</label><input v-model="form.address"></div>
+        <div class="field"><label>کد اقتصادی</label><input v-model="form.taxId"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" @click="cancelEdit">لغو</button>
+          <button class="btn btn-primary" @click="saveEdit">ذخیره</button>
+        </div>
+      </div>
+    </div>
+  `
+};
+
 const ToastContainer = {
   setup() { return { toast }; },
   template: `
@@ -1890,7 +2023,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ToastContainer },
   setup() {
     store.applyTheme();
     const currentTab = ref(localStorage.getItem('inv_tab') || 'dashboard');
@@ -1960,6 +2093,7 @@ const App = {
     <SharedInvoiceModal />
     <AddPaymentModal />
     <PaymentsListModal />
+    <CustomerDetailModal @edit="onEdit" />
     <ToastContainer />
   `
 };
