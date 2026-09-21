@@ -204,6 +204,11 @@ input:checked+.slider:before{transform:translateX(20px);background:#fff}
   .p-signature .p-sig-line{width:180px;border-top:1px solid var(--p-accent);margin-top:40px;padding-top:4px;text-align:center}
 
 }
+
+/* Progress bar for payments */
+.goal-bar{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.goal-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;border-radius:6px}
+.goal-fill.done{background:linear-gradient(90deg,var(--success),#22c55e)}
 </style>
 <script type="importmap">
 { "imports": { "vue": "https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js" } }
