@@ -1194,12 +1194,6 @@ const SettingsView = {
     </div>
 
     <div class="form-card">
-      <div class="form-title"><span class="ft-icon">🏷</span>کدهای تخفیف</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">کد تخفیف بساز و توی فاکتور اعمال کن.</div>
-      <button class="btn btn-primary btn-block" @click="modals.manageDiscounts = true">🏷 مدیریت کدها ({{ faDigits(store.discountCodes.length) }})</button>
-    </div>
-
-    <div class="form-card">
       <div class="form-title"><span class="ft-icon">📦</span>قالب‌های آیتم</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">محصولات و خدمات پرتکرار رو اینجا ذخیره کن تا توی فاکتور یه کلیک اضافه شن.</div>
       <button class="btn btn-primary btn-block" @click="modals.manageTemplates = true">⚙️ مدیریت قالب‌ها ({{ faDigits(store.itemTemplates.length) }})</button>
