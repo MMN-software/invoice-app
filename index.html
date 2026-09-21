@@ -676,7 +676,7 @@ const CustomersView = {
       return arr.sort((a, b) => b.total - a.total);
     });
     const initial = (name) => (name || '?').trim().charAt(0);
-    const viewCustomer = (c) => { modals.sharedInvoice = null; emit('openInvoices', c.name); };
+    const viewCustomer = (c) => { modals.customerDetail = c.name; };
     return { store, modals, search, customers, currencySymbol, initial, formatMoney, persianDate, faDigits, viewCustomer };
   },
   template: `
