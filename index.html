@@ -625,7 +625,8 @@ const modals = reactive({
   customerDetail: null,
   manageTemplates: false,
   pickTemplate: false,
-  manageDiscounts: false
+  manageDiscounts: false,
+  viewReceipt: null
 });
 
 /* ===== Components ===== */
@@ -1935,6 +1936,42 @@ const AddPaymentModal = {
     const date = ref('');
     const method = ref('cash');
     const note = ref('');
+    const receipt = ref(null);
+    const receiptInput = ref(null);
+
+    const onReceiptFile = (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (!f.type.startsWith('image/')) { toast.error('فقط عکس مجاز است'); return; }
+      const r = new FileReader();
+      r.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const max = 900;
+            const ratio = Math.min(max / img.width, max / img.height, 1);
+            const cc = document.createElement('canvas');
+            cc.width = Math.round(img.width * ratio);
+            cc.height = Math.round(img.height * ratio);
+            cc.getContext('2d').drawImage(img, 0, 0, cc.width, cc.height);
+            receipt.value = cc.toDataURL('image/jpeg', 0.78);
+            toast.success('رسید اضافه شد');
+          } catch (err) { toast.error('خطا در پردازش عکس'); }
+        };
+        img.onerror = () => toast.error('عکس خوانده نشد');
+        img.src = ev.target.result;
+      };
+      r.onerror = () => toast.error('خطا در خواندن فایل');
+      r.readAsDataURL(f);
+    };
+
+    const triggerReceipt = () => {
+      if (!receiptInput.value) return;
+      receiptInput.value.value = '';
+      receiptInput.value.click();
+    };
+
+    const removeReceipt = () => { receipt.value = null; };
 
     const inv = computed(() => {
       if (!modals.addPayment) return null;
@@ -1950,6 +1987,7 @@ const AddPaymentModal = {
       date.value = todayKey();
       method.value = 'cash';
       note.value = '';
+      receipt.value = null;
     };
 
     // وقتی مودال باز می‌شه، مقدار پیش‌فرض = کل باقی‌مانده
@@ -1962,7 +2000,7 @@ const AddPaymentModal = {
       if (!inv.value) return;
       if (!amount.value || amount.value <= 0) { toast.error('مبلغ باید بیشتر از صفر باشد'); return; }
       if (amount.value > remaining.value + 1) { toast.error('مبلغ بیشتر از باقی‌مانده است'); return; }
-      store.addPayment(inv.value.id, { amount: amount.value, date: date.value, method: method.value, note: note.value });
+      store.addPayment(inv.value.id, { amount: amount.value, date: date.value, method: method.value, note: note.value, receipt: receipt.value });
       toast.success('پرداخت ثبت شد');
       if (modals.invoiceDetail) {
         modals.invoiceDetail = store.invoices.find(x => x.id === modals.invoiceDetail.id) || modals.invoiceDetail;
@@ -1978,7 +2016,7 @@ const AddPaymentModal = {
       { id: 'other', name: '📌 سایر' }
     ];
 
-    return { store, modals, inv, totals, paid, remaining, currencySymbol, amount, date, method, note, methods, reset, init, save, formatMoney, faDigits };
+    return { store, modals, inv, totals, paid, remaining, currencySymbol, amount, date, method, note, methods, reset, init, save, formatMoney, faDigits, receipt, receiptInput, onReceiptFile, triggerReceipt, removeReceipt };
   },
   template: `
     <div class="modal-bg" v-if="modals.addPayment && inv && totals" @click.self="modals.addPayment = null">
@@ -2007,6 +2045,19 @@ const AddPaymentModal = {
           </select>
         </div>
         <div class="field"><label>یادداشت</label><input v-model="note" placeholder="اختیاری"></div>
+
+        <div class="field">
+          <label>📎 رسید پرداخت (عکس فیش)</label>
+          <input ref="receiptInput" type="file" accept="image/*" style="display:none" @change="onReceiptFile">
+          <div v-if="!receipt" style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="flex:1;padding:10px" @click="triggerReceipt">📷 افزودن عکس رسید</button>
+          </div>
+          <div v-else style="display:flex;gap:8px;align-items:center;padding:8px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border)">
+            <img :src="receipt" style="width:60px;height:60px;border-radius:10px;object-fit:cover;flex-shrink:0" alt="receipt">
+            <div style="flex:1;font-size:11px;color:var(--muted)">رسید آماده ارسال است</div>
+            <button class="btn-sm" style="color:var(--danger)" @click="removeReceipt">✕</button>
+          </div>
+        </div>
 
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="modals.addPayment = null">لغو</button>
@@ -2040,8 +2091,9 @@ const PaymentsListModal = {
       modals.addPayment = inv.value.id;
     };
     const close = () => { modals.paymentsList = null; };
+    const viewReceipt = (src) => { modals.viewReceipt = src; };
 
-    return { store, modals, inv, payments, total, paid, remaining, currencySymbol, methodLabel, del, add, close, formatMoney, persianDate, faDigits };
+    return { store, modals, inv, payments, total, paid, remaining, currencySymbol, methodLabel, del, add, close, viewReceipt, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="modal-bg" v-if="modals.paymentsList && inv" @click.self="close">
@@ -2066,8 +2118,12 @@ const PaymentsListModal = {
               </div>
               <button class="btn btn-danger btn-sm" @click="del(p.id)">🗑</button>
             </div>
-            <div v-if="p.note" class="ic-foot" style="border:none;padding-top:4px">
-              <span style="font-size:11px;color:var(--muted)">{{ p.note }}</span>
+            <div v-if="p.note || p.receipt" style="border-top:1px dashed var(--border);margin-top:8px;padding-top:8px;display:flex;gap:8px;align-items:center">
+              <div v-if="p.receipt" style="cursor:pointer;flex-shrink:0" @click="viewReceipt(p.receipt)">
+                <img :src="p.receipt" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt="receipt">
+              </div>
+              <span v-if="p.note" style="font-size:11px;color:var(--muted);flex:1">{{ p.note }}</span>
+              <span v-else-if="p.receipt" style="font-size:11px;color:var(--muted)">📎 رسید پیوست شده</span>
             </div>
           </div>
         </div>
