@@ -624,7 +624,8 @@ const modals = reactive({
   paymentsList: null,
   customerDetail: null,
   manageTemplates: false,
-  pickTemplate: false
+  pickTemplate: false,
+  manageDiscounts: false
 });
 
 /* ===== Components ===== */
@@ -1141,6 +1142,12 @@ const SettingsView = {
         <div class="field"><label>شماره بعدی</label><input type="number" v-model.number="store.settings.nextNumber" @change="store.save()" min="1"></div>
       </div>
       <div class="field"><label>نمونه</label><input :value="store.generateInvoiceNumber()" readonly></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🏷</span>کدهای تخفیف</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">کد تخفیف بساز و توی فاکتور اعمال کن.</div>
+      <button class="btn btn-primary btn-block" @click="modals.manageDiscounts = true">🏷 مدیریت کدها ({{ faDigits(store.discountCodes.length) }})</button>
     </div>
 
     <div class="form-card">
@@ -1993,6 +2000,126 @@ const PickTemplateModal = {
   `
 };
 
+const ManageDiscountsModal = {
+  setup() {
+    const form = reactive({ id: null, code: '', type: 'percent', value: 0, minAmount: 0, maxUses: 0, expiresAt: '', active: true, note: '' });
+
+    const reset = () => {
+      form.id = null; form.code = ''; form.type = 'percent'; form.value = 0;
+      form.minAmount = 0; form.maxUses = 0; form.expiresAt = ''; form.active = true; form.note = '';
+    };
+
+    const editing = computed(() => !!form.id);
+
+    const save = () => {
+      if (!form.code.trim()) { toast.error('کد الزامی است'); return; }
+      if (form.type === 'percent' && (form.value < 0 || form.value > 100)) { toast.error('درصد باید بین ۰ تا ۱۰۰ باشد'); return; }
+      if (form.type === 'fixed' && form.value <= 0) { toast.error('مبلغ باید بیشتر از صفر باشد'); return; }
+
+      let res;
+      if (editing.value) res = store.updateDiscountCode({ ...form });
+      else res = store.addDiscountCode({ ...form });
+
+      if (res && res.error) { toast.error(res.error); return; }
+      toast.success(editing.value ? 'بروز شد' : 'کد اضافه شد');
+      reset();
+    };
+
+    const edit = (cd) => {
+      form.id = cd.id; form.code = cd.code; form.type = cd.type; form.value = cd.value;
+      form.minAmount = cd.minAmount || 0; form.maxUses = cd.maxUses || 0;
+      form.expiresAt = cd.expiresAt || ''; form.active = cd.active !== false; form.note = cd.note || '';
+    };
+
+    const del = (id) => {
+      if (!confirm('این کد حذف شود؟')) return;
+      store.deleteDiscountCode(id);
+      if (form.id === id) reset();
+      toast.info('حذف شد');
+    };
+
+    const toggleActive = (cd) => {
+      store.updateDiscountCode({ ...cd, active: !cd.active });
+    };
+
+    const close = () => { reset(); modals.manageDiscounts = false; };
+
+    const isExpired = (cd) => cd.expiresAt && cd.expiresAt < todayKey();
+    const isFull = (cd) => cd.maxUses > 0 && cd.usedCount >= cd.maxUses;
+
+    return { store, modals, form, editing, save, edit, del, toggleActive, reset, close, isExpired, isFull, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.manageDiscounts" @click.self="close">
+      <div class="modal">
+        <h3>🏷 کدهای تخفیف</h3>
+
+        <div class="form-card" style="padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px">{{ editing ? '✏️ ویرایش کد' : '➕ کد جدید' }}</div>
+          <div class="field"><label>کد *</label><input v-model="form.code" placeholder="مثلاً: WELCOME10" style="text-transform:uppercase"></div>
+          <div class="field-row">
+            <div class="field"><label>نوع</label>
+              <select v-model="form.type">
+                <option value="percent">📊 درصدی</option>
+                <option value="fixed">💰 مبلغ ثابت</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>{{ form.type === 'percent' ? 'درصد' : 'مبلغ' }}</label>
+              <input type="number" v-model.number="form.value" min="0" :max="form.type === 'percent' ? 100 : undefined">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>حداقل سفارش</label><input type="number" v-model.number="form.minAmount" min="0"></div>
+            <div class="field"><label>حداکثر استفاده (۰=بی‌نهایت)</label><input type="number" v-model.number="form.maxUses" min="0"></div>
+          </div>
+          <div class="field"><label>تاریخ انقضا (خالی=بدون انقضا)</label><input type="date" v-model="form.expiresAt"></div>
+          <div class="field"><label>یادداشت</label><input v-model="form.note" placeholder="اختیاری"></div>
+          <div class="setting-row" style="border:none;padding:6px 0">
+            <div><div class="lbl">فعال</div></div>
+            <label class="switch"><input type="checkbox" v-model="form.active"><span class="slider"></span></label>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button v-if="editing" class="btn btn-ghost" style="flex:1" @click="reset">انصراف</button>
+            <button class="btn btn-primary" style="flex:1" @click="save">{{ editing ? '💾 بروز' : '➕ افزودن' }}</button>
+          </div>
+        </div>
+
+        <div v-if="!store.discountCodes.length" class="empty" style="padding:20px">هنوز کدی نداری</div>
+        <div v-else>
+          <div v-for="cd in store.discountCodes" :key="cd.id" class="invoice-card" style="padding:10px;cursor:default">
+            <div class="ic-head" style="margin-bottom:6px">
+              <div style="flex:1;min-width:0">
+                <div class="ic-buyer" style="font-family:monospace;font-size:13px;letter-spacing:1px">{{ cd.code }}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:3px">
+                  {{ cd.type === 'percent' ? faDigits(cd.value) + '٪' : formatMoney(cd.value) }}
+                  <span v-if="cd.minAmount > 0"> — حداقل {{ formatMoney(cd.minAmount) }}</span>
+                </div>
+              </div>
+              <div style="text-align:left;font-size:10px">
+                <span v-if="!cd.active" style="color:var(--danger)">⛔ غیرفعال</span>
+                <span v-else-if="isExpired(cd)" style="color:var(--warn)">⏰ منقضی</span>
+                <span v-else-if="isFull(cd)" style="color:var(--warn)">🔒 پر شده</span>
+                <span v-else style="color:var(--success)">✅ فعال</span>
+                <div style="color:var(--muted);margin-top:4px">
+                  {{ faDigits(cd.usedCount || 0) }}<span v-if="cd.maxUses > 0"> / {{ faDigits(cd.maxUses) }}</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm" style="flex:1" @click="edit(cd)">✏️ ویرایش</button>
+              <button class="btn-sm" style="flex:1" @click="toggleActive(cd)">{{ cd.active ? '⛔ خاموش' : '✅ روشن' }}</button>
+              <button class="btn-sm" style="flex:1;color:var(--danger)" @click="del(cd.id)">🗑</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:14px"><button class="btn btn-ghost" @click="close">بستن</button></div>
+      </div>
+    </div>
+  `
+};
+
 const ManageTemplatesModal = {
   setup() {
     const form = reactive({ id: null, name: '', unitPrice: 0, unit: 'عدد', category: '', description: '' });
@@ -2339,7 +2466,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ToastContainer },
   setup() {
     store.applyTheme();
     const _urlParams = new URLSearchParams(window.location.search);
@@ -2417,6 +2544,7 @@ const App = {
     <CustomerDetailModal @edit="onEdit" />
     <ManageTemplatesModal />
     <PickTemplateModal />
+    <ManageDiscountsModal />
     <ToastContainer />
   `
 };
