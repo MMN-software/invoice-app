@@ -320,6 +320,48 @@ function decodeShareLink(hash) {
   return expandInvoice(JSON.parse(decodeURIComponent(escape(atob(b64)))));
 }
 
+/* ===== PIN Lock ===== */
+const PIN_KEY = 'pin_config';
+const PIN_SESSION_KEY = 'pin_session';
+
+async function hashPin(pin) {
+  try {
+    if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+      const buf = new TextEncoder().encode('sb_inv_' + pin + '_v1');
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) { console.warn('subtle crypto unavailable'); }
+  // fallback ساده
+  let h = 0;
+  const s = 'sb_inv_' + pin + '_v1';
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+  return 'fb_' + h.toString(16);
+}
+
+const pinLock = reactive({
+  enabled: false,
+  hash: '',
+  failCount: 0,
+  lockUntil: 0,
+  unlocked: false,
+  showSetup: false,
+  setupStage: 1, // 1: new, 2: confirm
+  setupPin1: '',
+  inputPin: ''
+});
+
+function loadPinConfig() {
+  const cfg = DB.get(PIN_KEY, null);
+  if (cfg && cfg.enabled && cfg.hash) {
+    pinLock.enabled = true;
+    pinLock.hash = cfg.hash;
+  }
+}
+function savePinConfig() {
+  DB.set(PIN_KEY, { enabled: pinLock.enabled, hash: pinLock.hash });
+}
+
 /* ===== Toast ===== */
 const toast = {
   items: reactive([]),
@@ -644,6 +686,101 @@ const modals = reactive({
 });
 
 /* ===== Components ===== */
+
+const PinLockScreen = {
+  setup() {
+    const error = ref('');
+    const now = ref(Date.now());
+    setInterval(() => { now.value = Date.now(); }, 1000);
+
+    const isLockedOut = computed(() => pinLock.lockUntil > now.value);
+    const lockoutRemaining = computed(() => {
+      if (!isLockedOut.value) return 0;
+      return Math.ceil((pinLock.lockUntil - now.value) / 1000);
+    });
+
+    const press = async (n) => {
+      if (isLockedOut.value) return;
+      error.value = '';
+      if (pinLock.inputPin.length >= 4) return;
+      pinLock.inputPin += String(n);
+      if (pinLock.inputPin.length === 4) {
+        await verify();
+      }
+    };
+    const backspace = () => {
+      if (isLockedOut.value) return;
+      error.value = '';
+      pinLock.inputPin = pinLock.inputPin.slice(0, -1);
+    };
+    const verify = async () => {
+      const h = await hashPin(pinLock.inputPin);
+      if (h === pinLock.hash) {
+        pinLock.unlocked = true;
+        pinLock.failCount = 0;
+        pinLock.lockUntil = 0;
+        pinLock.inputPin = '';
+        sessionStorage.setItem(PIN_SESSION_KEY, '1');
+        toast.success('خوش آمدید');
+      } else {
+        pinLock.failCount++;
+        pinLock.inputPin = '';
+        if (pinLock.failCount >= 3) {
+          pinLock.lockUntil = Date.now() + 30000;
+          error.value = '۳ بار اشتباه — ۳۰ ثانیه صبر کن';
+          pinLock.failCount = 0;
+        } else {
+          error.value = 'PIN اشتباه — ' + (3 - pinLock.failCount) + ' تلاش مانده';
+        }
+      }
+    };
+    const forgot = () => {
+      if (!confirm('⚠️ فراموشی PIN فقط با پاک کردن همه داده‌ها امکان‌پذیره!\n\nمطمئنی؟')) return;
+      if (!confirm('آخرین هشدار: همه‌ی فاکتورها، مشتریان و تنظیمات پاک می‌شن. ادامه؟')) return;
+      ['seller', 'buyers', 'invoices', 'itemTemplates', 'discountCodes', 'settings', PIN_KEY].forEach(k => DB.remove(k));
+      localStorage.clear();
+      location.reload();
+    };
+
+    return { pinLock, error, isLockedOut, lockoutRemaining, press, backspace, forgot, faDigits };
+  },
+  template: `
+    <div v-if="pinLock.enabled && !pinLock.unlocked" style="position:fixed;inset:0;background:var(--bg1);z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px">
+      <div style="text-align:center;margin-bottom:30px">
+        <div style="font-size:56px;margin-bottom:12px">🔐</div>
+        <div style="font-size:20px;font-weight:800">فاکتورساز</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">برای ورود PIN بزن</div>
+      </div>
+
+      <div style="display:flex;gap:14px;margin-bottom:24px;direction:ltr">
+        <div v-for="i in 4" :key="i" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border)"
+             :style="{background: pinLock.inputPin.length >= i ? 'var(--accent)' : 'transparent', borderColor: pinLock.inputPin.length >= i ? 'var(--accent)' : 'var(--border)'}"></div>
+      </div>
+
+      <div v-if="error" style="color:var(--danger);font-size:13px;margin-bottom:14px;text-align:center;font-weight:600">{{ error }}</div>
+
+      <div v-if="isLockedOut" style="color:var(--warn);font-size:22px;font-weight:800;margin-bottom:14px">⏰ {{ faDigits(lockoutRemaining) }}</div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;width:100%">
+        <button v-for="n in [1,2,3,4,5,6,7,8,9]" :key="n"
+                @click="press(n)" :disabled="isLockedOut"
+                style="aspect-ratio:1;border-radius:20px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:24px;font-weight:700;font-family:inherit;cursor:pointer;transition:.2s"
+                :style="{opacity: isLockedOut ? .4 : 1}">{{ faDigits(n) }}</button>
+
+        <button @click="backspace" :disabled="isLockedOut"
+                style="aspect-ratio:1;border-radius:20px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:22px;font-family:inherit;cursor:pointer"
+                :style="{opacity: isLockedOut ? .4 : 1}">⌫</button>
+
+        <button @click="press(0)" :disabled="isLockedOut"
+                style="aspect-ratio:1;border-radius:20px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:24px;font-weight:700;font-family:inherit;cursor:pointer"
+                :style="{opacity: isLockedOut ? .4 : 1}">{{ faDigits(0) }}</button>
+
+        <button @click="forgot"
+                style="aspect-ratio:1;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer">فراموشی</button>
+      </div>
+    </div>
+  `
+};
 
 const AppHeader = {
   setup() { return { store, modals }; },
@@ -2805,9 +2942,20 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ViewReceiptModal, ToastContainer },
+  components: { PinLockScreen, AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ViewReceiptModal, ToastContainer },
   setup() {
     store.applyTheme();
+    loadPinConfig();
+    // اگه PIN فعاله و session معتبر نیست → قفل
+    if (pinLock.enabled) {
+      if (sessionStorage.getItem(PIN_SESSION_KEY) === '1') {
+        pinLock.unlocked = true;
+      } else {
+        pinLock.unlocked = false;
+      }
+    } else {
+      pinLock.unlocked = true;
+    }
     const _urlParams = new URLSearchParams(window.location.search);
     if (_urlParams.has('reset')) {
       localStorage.removeItem('inv_tab');
@@ -2869,6 +3017,7 @@ const App = {
     return { currentTab, changeTab, onSaved, onEdit, onCanceled, customerFilter, openCustomerInvoices, clearCustomerFilter };
   },
   template: `
+    <PinLockScreen />
     <AppHeader />
     <main>
       <DashboardView v-if="currentTab === 'dashboard'" @navigate="changeTab" />
