@@ -346,7 +346,7 @@ const TEMPLATES = [
 ];
 
 const DEFAULT_SETTINGS = {
-  theme: 'dark', accent: 'purple', currency: 'toman',
+  theme: 'dark', accent: 'purple', currency: 'toman', autoTheme: false,
   numberPrefix: 'INV', nextNumber: 1, taxRate: 9, autoTax: true,
   defaultNotes: 'پرداخت تا ۷ روز پس از تاریخ صدور.\nبا تشکر از همکاری شما.',
   defaultTemplate: 'colorful'
@@ -379,7 +379,12 @@ const store = reactive({
     DB.set('settings', this.settings);
   },
   applyTheme() {
-    document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
+    let theme = this.settings.theme || 'dark';
+    if (this.settings.autoTheme) {
+      const h = new Date().getHours();
+      theme = (h >= 7 && h < 19) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.setAttribute('data-accent', this.settings.accent || 'purple');
   },
   toggleTheme() {
@@ -1116,6 +1121,13 @@ const InvoiceListView = {
 const SettingsView = {
   setup() {
     const setAccent = (id) => { store.settings.accent = id; store.save(); store.applyTheme(); };
+
+    const toggleAutoTheme = () => {
+      store.settings.autoTheme = !store.settings.autoTheme;
+      store.save();
+      store.applyTheme();
+      toast.success(store.settings.autoTheme ? 'تم خودکار فعال شد' : 'تم خودکار غیرفعال شد');
+    };
     const notifStatus = computed(() => {
       if (!('Notification' in window)) return 'پشتیبانی نمی‌شه';
       const p = Notification.permission;
@@ -1171,7 +1183,7 @@ const SettingsView = {
       store.save(); store.applyTheme();
       toast.success('همه‌ی داده‌ها پاک شد');
     };
-    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput, faDigits };
+    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, toggleAutoTheme, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput, faDigits };
   },
   template: `
     <div class="section-title"><span>⚙️</span><span>تنظیمات</span></div>
@@ -1238,8 +1250,12 @@ const SettingsView = {
     <div class="form-card">
       <div class="form-title"><span class="ft-icon">🎨</span>ظاهر</div>
       <div class="setting-row" style="border:none">
-        <div><div class="lbl">تم تاریک/روشن</div></div>
-        <label class="switch"><input type="checkbox" :checked="store.settings.theme === 'dark'" @change="store.toggleTheme()"><span class="slider"></span></label>
+        <div><div class="lbl">تم تاریک/روشن</div><div class="sub" v-if="store.settings.autoTheme">غیرفعال — تم خودکار روشنه</div></div>
+        <label class="switch"><input type="checkbox" :checked="store.settings.theme === 'dark'" :disabled="store.settings.autoTheme" @change="store.toggleTheme()"><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">🌗 تم خودکار</div><div class="sub">۷ صبح تا ۷ شب روشن، بعدش تاریک</div></div>
+        <label class="switch"><input type="checkbox" :checked="store.settings.autoTheme" @change="toggleAutoTheme"><span class="slider"></span></label>
       </div>
       <div class="theme-colors">
         <div v-for="a in ACCENTS" :key="a.id" :class="['color-dot', { active: store.settings.accent === a.id }]" :style="{ background: 'linear-gradient(135deg, ' + a.c1 + ', ' + a.c2 + ')' }" @click="setAccent(a.id)"></div>
@@ -2774,6 +2790,10 @@ const App = {
       } catch (e) { console.warn(e); }
     };
     onMounted(() => {
+      // تم خودکار: هر ۵ دقیقه چک کن
+      setInterval(() => {
+        if (store.settings.autoTheme) store.applyTheme();
+      }, 5 * 60 * 1000);
       checkOverdueNotifications();
       if (location.hash.startsWith('#share=')) {
         try {
