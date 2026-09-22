@@ -2460,6 +2460,59 @@ const ManageTemplatesModal = {
   `
 };
 
+const ViewReceiptModal = {
+  setup() {
+    const close = () => { modals.viewReceipt = null; };
+
+    const download = () => {
+      try {
+        const src = modals.viewReceipt;
+        if (!src) return;
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = 'receipt-' + Date.now() + '.jpg';
+        a.click();
+        toast.success('دانلود شد');
+      } catch (e) { toast.error('خطا در دانلود'); }
+    };
+
+    const shareReceipt = async () => {
+      try {
+        const src = modals.viewReceipt;
+        if (!src) return;
+        const res = await fetch(src);
+        const blob = await res.blob();
+        const file = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: 'رسید پرداخت' }); return; }
+          catch (e) { if (e.name === 'AbortError') return; throw e; }
+        }
+        download();
+      } catch (e) { toast.error('اشتراک ممکن نشد'); }
+    };
+
+    return { modals, close, download, shareReceipt };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.viewReceipt" @click.self="close" style="z-index:160">
+      <div class="modal" style="max-width:520px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;font-size:15px">📎 رسید پرداخت</h3>
+          <button class="icon-btn" @click="close" style="width:32px;height:32px;font-size:14px">✕</button>
+        </div>
+        <div style="border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--border);margin-bottom:12px">
+          <img :src="modals.viewReceipt" style="width:100%;height:auto;display:block;max-height:60vh;object-fit:contain" alt="receipt">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary" style="flex:1" @click="shareReceipt">📤 اشتراک</button>
+          <button class="btn btn-ghost" style="flex:1" @click="download">💾 دانلود</button>
+        </div>
+        <button class="btn btn-ghost btn-block" style="margin-top:6px" @click="close">بستن</button>
+      </div>
+    </div>
+  `
+};
+
 const CustomerDetailModal = {
   emits: ['edit'],
   setup(props, { emit }) {
@@ -2686,7 +2739,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ToastContainer },
+  components: { AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ViewReceiptModal, ToastContainer },
   setup() {
     store.applyTheme();
     const _urlParams = new URLSearchParams(window.location.search);
@@ -2765,6 +2818,7 @@ const App = {
     <ManageTemplatesModal />
     <PickTemplateModal />
     <ManageDiscountsModal />
+    <ViewReceiptModal />
     <ToastContainer />
   `
 };
