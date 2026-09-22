@@ -2980,6 +2980,141 @@ const CustomerDetailModal = {
   `
 };
 
+const ReceiptsGalleryView = {
+  setup() {
+    const search = ref('');
+    const customerFilter = ref('');
+    const dateFilter = ref('all');
+    const currencySymbol = computed(() => CURRENCIES.find(x => x.id === store.settings.currency)?.symbol || 'ت');
+
+    const allReceipts = computed(() => {
+      const out = [];
+      store.invoices.forEach(inv => {
+        (inv.payments || []).forEach(p => {
+          if (p.receipt) {
+            out.push({
+              id: p.id,
+              invoiceId: inv.id,
+              invoiceNumber: inv.number,
+              customer: inv.buyer && inv.buyer.name || '—',
+              amount: Number(p.amount) || 0,
+              date: p.date,
+              method: p.method,
+              note: p.note || '',
+              receipt: p.receipt,
+              invoice: inv
+            });
+          }
+        });
+      });
+      return out.sort((a, b) => (a.date < b.date ? 1 : -1));
+    });
+
+    const customerList = computed(() => {
+      const s = new Set();
+      allReceipts.value.forEach(r => s.add(r.customer));
+      return Array.from(s).sort();
+    });
+
+    const filtered = computed(() => {
+      let arr = allReceipts.value;
+      if (customerFilter.value) arr = arr.filter(r => r.customer === customerFilter.value);
+      if (dateFilter.value !== 'all') {
+        const now = new Date();
+        const days = dateFilter.value === '30' ? 30 : dateFilter.value === '90' ? 90 : 365;
+        const cutoff = new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
+        arr = arr.filter(r => r.date >= cutoff);
+      }
+      const q = search.value.trim().toLowerCase();
+      if (q) arr = arr.filter(r =>
+        r.customer.toLowerCase().includes(q) ||
+        r.invoiceNumber.toLowerCase().includes(q) ||
+        (r.note || '').toLowerCase().includes(q)
+      );
+      return arr;
+    });
+
+    const totalAmount = computed(() => filtered.value.reduce((s, r) => s + r.amount, 0));
+    const totalCount = computed(() => filtered.value.length);
+
+    const open = (r) => { modals.viewReceipt = r.receipt; };
+    const openInvoice = (r, e) => {
+      e.stopPropagation();
+      modals.invoiceDetail = r.invoice;
+    };
+    const methodLabel = (m) => ({ cash: 'نقدی', card: 'کارت', transfer: 'انتقال', crypto: 'ارز دیجیتال', other: 'سایر' }[m] || '—');
+
+    return { store, modals, search, customerFilter, dateFilter, currencySymbol,
+      allReceipts, customerList, filtered, totalAmount, totalCount,
+      open, openInvoice, methodLabel, formatMoney, persianDate, faDigits };
+  },
+  template: `
+    <div class="section-title"><span>🖼</span><span>گالری رسیدها</span></div>
+
+    <div class="big-stats" v-if="allReceipts.length">
+      <div class="big-stat">
+        <div class="bs-icon">📎</div>
+        <div class="bs-val">{{ faDigits(totalCount) }}</div>
+        <div class="bs-lbl">رسید</div>
+      </div>
+      <div class="big-stat">
+        <div class="bs-icon">💰</div>
+        <div class="bs-val">{{ formatMoney(totalAmount) }} {{ currencySymbol }}</div>
+        <div class="bs-lbl">جمع پرداخت‌ها</div>
+      </div>
+    </div>
+
+    <div v-if="allReceipts.length" class="form-card" style="padding:12px">
+      <div class="glass" style="padding:8px;margin-bottom:10px">
+        <input v-model="search" placeholder="🔍 جستجو در رسیدها..." style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;padding:4px;font-family:inherit">
+      </div>
+      <div class="field-row" style="margin-bottom:8px">
+        <div class="field" style="margin:0">
+          <select v-model="customerFilter">
+            <option value="">👥 همه مشتریان</option>
+            <option v-for="cn in customerList" :key="cn" :value="cn">{{ cn }}</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0">
+          <select v-model="dateFilter">
+            <option value="all">📅 همه زمان‌ها</option>
+            <option value="30">۳۰ روز اخیر</option>
+            <option value="90">۳ ماه اخیر</option>
+            <option value="365">۱ سال اخیر</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="!allReceipts.length" class="empty">
+      <div class="empty-icon">🖼</div>
+      هنوز رسیدی پیوست نکردی!<br>
+      <span style="font-size:11px;display:block;margin-top:8px">وقتی پرداخت ثبت می‌کنی، می‌تونی عکس فیش پیوست کنی</span>
+    </div>
+    <div v-else-if="!filtered.length" class="empty">
+      <div class="empty-icon">🔍</div>
+      موردی مطابق فیلتر پیدا نشد
+    </div>
+    <div v-else style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+      <div v-for="r in filtered" :key="r.id" @click="open(r)"
+           style="border-radius:14px;overflow:hidden;background:var(--glass);border:1px solid var(--border);cursor:pointer;transition:.2s">
+        <div style="position:relative;background:#000;aspect-ratio:1;overflow:hidden">
+          <img :src="r.receipt" style="width:100%;height:100%;object-fit:cover;display:block" alt="receipt">
+          <div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:3px 8px;border-radius:8px">{{ formatMoney(r.amount) }}</div>
+        </div>
+        <div style="padding:8px 10px">
+          <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.customer }}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;display:flex;justify-content:space-between">
+            <span>{{ persianDate(r.date) }}</span>
+            <span>{{ methodLabel(r.method) }}</span>
+          </div>
+          <button @click="openInvoice(r, $event)" style="margin-top:6px;width:100%;padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:10px;cursor:pointer">🧾 {{ r.invoiceNumber }}</button>
+        </div>
+      </div>
+    </div>
+  `
+};
+
 const ToastContainer = {
   setup() { return { toast }; },
   template: `
