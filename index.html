@@ -1958,17 +1958,49 @@ const AddPaymentModal = {
         const img = new Image();
         img.onload = () => {
           try {
-            const max = 900;
-            const ratio = Math.min(max / img.width, max / img.height, 1);
+            const max = 800;
+            let w = img.naturalWidth || img.width;
+            let h = img.naturalHeight || img.height;
+            if (!w || !h) throw new Error('ابعاد نامعتبر');
+            const ratio = Math.min(max / w, max / h, 1);
+            const cw = Math.max(1, Math.round(w * ratio));
+            const ch = Math.max(1, Math.round(h * ratio));
             const cc = document.createElement('canvas');
-            cc.width = Math.round(img.width * ratio);
-            cc.height = Math.round(img.height * ratio);
-            cc.getContext('2d').drawImage(img, 0, 0, cc.width, cc.height);
-            receipt.value = cc.toDataURL('image/jpeg', 0.78);
+            cc.width = cw;
+            cc.height = ch;
+            const ctx = cc.getContext('2d');
+            if (!ctx) throw new Error('Canvas پشتیبانی نمی‌شود');
+            // پس‌زمینه سفید — وگرنه JPEG مشکی می‌شود
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            let dataUrl = cc.toDataURL('image/jpeg', 0.82);
+            // اعتبارسنجی خروجی
+            if (!dataUrl || dataUrl === 'data:,' || dataUrl.length < 200) {
+              throw new Error('خروجی نامعتبر');
+            }
+            receipt.value = dataUrl;
             toast.success('رسید اضافه شد');
-          } catch (err) { toast.error('خطا در پردازش عکس'); }
+          } catch (err) {
+            console.warn('Receipt resize failed:', err);
+            // Fallback: از خود دیتای اصلی استفاده کن
+            if (ev.target.result && ev.target.result.length > 200) {
+              receipt.value = ev.target.result;
+              toast.info('رسید بدون تغییر اندازه ذخیره شد');
+            } else {
+              toast.error('خطا در پردازش عکس');
+            }
+          }
         };
-        img.onerror = () => toast.error('عکس خوانده نشد');
+        img.onerror = () => {
+          console.warn('Image load failed, using raw data');
+          if (ev.target.result && ev.target.result.length > 200) {
+            receipt.value = ev.target.result;
+            toast.info('رسید ذخیره شد');
+          } else {
+            toast.error('عکس خوانده نشد');
+          }
+        };
         img.src = ev.target.result;
       };
       r.onerror = () => toast.error('خطا در خواندن فایل');
