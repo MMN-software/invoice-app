@@ -1502,6 +1502,56 @@ const InvoiceDetailModal = {
       setTimeout(() => { modals.addPayment = id; }, 100);
     };
     const openPaymentsList = () => { modals.paymentsList = inv.value?.id || ""; };
+    const normalizePhone = (p) => {
+      if (!p) return '';
+      let d = String(p).replace(/[^0-9]/g, '');
+      if (d.startsWith('98')) return d;
+      if (d.startsWith('0')) return '98' + d.slice(1);
+      if (d.length === 10) return '98' + d;
+      return d;
+    };
+    const whatsappShare = () => {
+      try {
+        if (!inv.value) return;
+        const t = totals.value;
+        const sym = currencySymbol.value;
+        const lines = [];
+        lines.push('🧾 فاکتور ' + inv.value.number);
+        lines.push('');
+        lines.push('از: ' + (inv.value.seller && inv.value.seller.name || '—'));
+        lines.push('به: ' + (inv.value.buyer && inv.value.buyer.name || '—'));
+        lines.push('');
+        lines.push('📅 تاریخ: ' + persianDate(inv.value.issueDate));
+        if (inv.value.dueDate) lines.push('⏰ سررسید: ' + persianDate(inv.value.dueDate));
+        lines.push('');
+        lines.push('💰 مبلغ کل: ' + formatMoney(t.subtotal) + ' ' + sym);
+        const totalDisc = (t.discountTotal || 0) + (t.invoiceDiscount || 0) + (t.discountCodeAmount || 0);
+        if (totalDisc > 0) lines.push('🏷 تخفیف: - ' + formatMoney(totalDisc) + ' ' + sym);
+        if (t.tax > 0) lines.push('🏛 مالیات: ' + formatMoney(t.tax) + ' ' + sym);
+        lines.push('');
+        lines.push('💵 مبلغ نهایی: ' + formatMoney(t.grandTotal) + ' ' + sym);
+        const p = paid.value;
+        if (p > 0) {
+          lines.push('');
+          lines.push('✅ پرداخت‌شده: ' + formatMoney(p) + ' ' + sym);
+          lines.push('⏳ باقی‌مانده: ' + formatMoney(Math.max(0, t.grandTotal - p)) + ' ' + sym);
+        }
+        if (inv.value.notes) {
+          lines.push('');
+          lines.push('📝 ' + inv.value.notes);
+        }
+        const text = lines.join('\n');
+        const phone = normalizePhone(inv.value.buyer && inv.value.buyer.phone);
+        const url = phone
+          ? 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text)
+          : 'https://wa.me/?text=' + encodeURIComponent(text);
+        window.open(url, '_blank');
+        toast.success('واتساپ باز شد');
+      } catch (e) {
+        console.error(e);
+        toast.error('خطا: ' + (e.message || ''));
+      }
+    };
     const close = () => { modals.invoiceDetail = null; };
     const edit = () => { store.loadDraft(inv.value); modals.invoiceDetail = null; emit('edit'); };
     const duplicate = () => { store.duplicateInvoice(inv.value?.id || ""); modals.invoiceDetail = null; emit('edit'); toast.info('کپی ساخته شد'); };
@@ -1548,7 +1598,7 @@ const InvoiceDetailModal = {
       else toast.info('دستی کپی کن');
     };
 
-    return { store, modals, inv, totals, currencySymbol, paid, remaining, paymentsCount, openAddPayment, openPaymentsList, close, edit, duplicate, print, remove, toggleStatus, sharing, shareImage, shareLink, genLink, copyLink, formatMoney, persianDate, faDigits };
+    return { store, modals, inv, totals, currencySymbol, paid, remaining, paymentsCount, openAddPayment, openPaymentsList, whatsappShare, close, edit, duplicate, print, remove, toggleStatus, sharing, shareImage, shareLink, genLink, copyLink, formatMoney, persianDate, faDigits };
   },
   template: `
     <div class="modal-bg" v-if="modals.invoiceDetail" @click.self="close">
@@ -1580,6 +1630,8 @@ const InvoiceDetailModal = {
           <button class="btn btn-ghost" style="flex:1;color:var(--success);border-color:color-mix(in srgb,var(--success) 40%,transparent)" @click="openAddPayment">💳 پرداخت</button>
           <button class="btn btn-ghost" style="flex:1" @click="openPaymentsList">📋 لیست ({{ faDigits(paymentsCount) }})</button>
         </div>
+
+        <button class="btn btn-block" @click="whatsappShare" style="background:#25D366;color:#fff;margin-bottom:10px">💬 ارسال به واتساپ</button>
 
         <div style="display:flex;gap:6px;margin-bottom:10px">
           <button class="btn btn-primary" style="flex:1" @click="print">🖨 چاپ</button>
