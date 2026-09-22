@@ -682,10 +682,135 @@ const modals = reactive({
   manageTemplates: false,
   pickTemplate: false,
   manageDiscounts: false,
-  viewReceipt: null
+  viewReceipt: null,
+  pinSetup: false
 });
 
 /* ===== Components ===== */
+
+const PinSetupModal = {
+  setup() {
+    const stage = ref(1);
+    const pin1 = ref('');
+    const pin2 = ref('');
+    const error = ref('');
+    const confirmRemove = ref(false);
+
+    const close = () => {
+      stage.value = 1; pin1.value = ''; pin2.value = ''; error.value = ''; confirmRemove.value = false;
+      modals.pinSetup = false;
+    };
+
+    const press = async (n) => {
+      error.value = '';
+      if (stage.value === 1) {
+        if (pin1.value.length >= 4) return;
+        pin1.value += String(n);
+        if (pin1.value.length === 4) {
+          setTimeout(() => { stage.value = 2; }, 300);
+        }
+      } else {
+        if (pin2.value.length >= 4) return;
+        pin2.value += String(n);
+        if (pin2.value.length === 4) {
+          await verify();
+        }
+      }
+    };
+    const backspace = () => {
+      error.value = '';
+      if (stage.value === 1) pin1.value = pin1.value.slice(0, -1);
+      else pin2.value = pin2.value.slice(0, -1);
+    };
+    const verify = async () => {
+      if (pin1.value !== pin2.value) {
+        error.value = 'PIN ها یکسان نیستن — دوباره';
+        stage.value = 1; pin1.value = ''; pin2.value = '';
+        return;
+      }
+      const h = await hashPin(pin1.value);
+      pinLock.hash = h;
+      pinLock.enabled = true;
+      savePinConfig();
+      sessionStorage.setItem(PIN_SESSION_KEY, '1');
+      pinLock.unlocked = true;
+      toast.success('🔐 قفل فعال شد');
+      close();
+    };
+    const disable = () => {
+      if (!confirm('قفل اپ خاموش شود؟')) return;
+      pinLock.enabled = false;
+      pinLock.hash = '';
+      savePinConfig();
+      toast.info('قفل اپ خاموش شد');
+      close();
+    };
+    const changePin = () => {
+      stage.value = 1; pin1.value = ''; pin2.value = ''; error.value = '';
+    };
+
+    return { pinLock, modals, stage, pin1, pin2, error, confirmRemove,
+      press, backspace, close, disable, changePin, faDigits };
+  },
+  template: `
+    <div class="modal-bg" v-if="modals.pinSetup" @click.self="close" style="z-index:200">
+      <div class="modal" style="max-width:400px">
+        <h3>🔐 قفل اپ</h3>
+
+        <div v-if="pinLock.enabled && stage === 1 && !confirmRemove">
+          <div style="text-align:center;padding:14px 0">
+            <div style="font-size:44px;margin-bottom:10px">✅</div>
+            <div style="font-size:15px;font-weight:800;color:var(--success)">قفل فعاله</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:6px">هر بار باز کردن اپ، PIN می‌خواد</div>
+          </div>
+          <button class="btn btn-ghost btn-block" @click="changePin">🔑 تغییر PIN</button>
+          <button class="btn btn-danger btn-block" @click="confirmRemove = true">⛔ خاموش کردن قفل</button>
+          <button class="btn btn-ghost btn-block" @click="close">بستن</button>
+        </div>
+
+        <div v-else-if="confirmRemove">
+          <div style="text-align:center;padding:14px 0">
+            <div style="font-size:44px;margin-bottom:10px">⚠️</div>
+            <div style="font-size:14px;color:var(--danger);font-weight:800">مطمئنی؟</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:8px">بعد از خاموش کردن، دیگه PIN لازم نیست</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="flex:1" @click="confirmRemove = false">انصراف</button>
+            <button class="btn btn-danger" style="flex:1" @click="disable">خاموش کن</button>
+          </div>
+        </div>
+
+        <div v-else>
+          <div style="text-align:center;margin-bottom:18px">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:6px">{{ stage === 1 ? 'PIN جدید (۴ رقم)' : 'تایید PIN' }}</div>
+            <div style="display:flex;gap:12px;justify-content:center;direction:ltr">
+              <div v-for="i in 4" :key="i" style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border)"
+                   :style="{background: (stage === 1 ? pin1 : pin2).length >= i ? 'var(--accent)' : 'transparent', borderColor: (stage === 1 ? pin1 : pin2).length >= i ? 'var(--accent)' : 'var(--border)'}"></div>
+            </div>
+          </div>
+
+          <div v-if="error" style="color:var(--danger);font-size:12px;text-align:center;margin-bottom:10px">{{ error }}</div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:260px;margin:0 auto">
+            <button v-for="n in [1,2,3,4,5,6,7,8,9]" :key="n"
+                    @click="press(n)"
+                    style="aspect-ratio:1;border-radius:16px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:20px;font-weight:700;font-family:inherit;cursor:pointer">{{ faDigits(n) }}</button>
+            <button @click="backspace"
+                    style="aspect-ratio:1;border-radius:16px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:18px;font-family:inherit;cursor:pointer">⌫</button>
+            <button @click="press(0)"
+                    style="aspect-ratio:1;border-radius:16px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:20px;font-weight:700;font-family:inherit;cursor:pointer">{{ faDigits(0) }}</button>
+            <button @click="stage === 1 ? (pin1='') : (pin2='')"
+                    style="aspect-ratio:1;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer">پاک</button>
+          </div>
+
+          <div class="modal-actions" style="margin-top:16px">
+            <button class="btn btn-ghost" @click="close">انصراف</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+};
 
 const PinLockScreen = {
   setup() {
@@ -1325,7 +1450,7 @@ const SettingsView = {
       store.save(); store.applyTheme();
       toast.success('همه‌ی داده‌ها پاک شد');
     };
-    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, setAccent, toggleAutoTheme, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput, faDigits };
+    return { store, modals, ACCENTS, CURRENCIES, TEMPLATES, pinLock, setAccent, toggleAutoTheme, notifStatus, requestNotif, exportData, triggerImport, onImport, clearAll, importInput, faDigits };
   },
   template: `
     <div class="section-title"><span>⚙️</span><span>تنظیمات</span></div>
@@ -1379,6 +1504,12 @@ const SettingsView = {
         <div><div class="lbl">اعمال خودکار مالیات</div></div>
         <label class="switch"><input type="checkbox" v-model="store.settings.autoTax" @change="store.save()"><span class="slider"></span></label>
       </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span class="ft-icon">🔐</span>قفل اپ</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">{{ store.settings._pinStatus || (pinLock.enabled ? 'فعال' : 'غیرفعال') }}</div>
+      <button class="btn btn-primary btn-block" @click="modals.pinSetup = true">🔐 {{ pinLock.enabled ? 'مدیریت قفل' : 'تنظیم PIN' }}</button>
     </div>
 
     <div class="form-card">
@@ -2942,7 +3073,7 @@ const PrintArea = {
 };
 
 const App = {
-  components: { PinLockScreen, AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ViewReceiptModal, ToastContainer },
+  components: { PinLockScreen, PinSetupModal, AppHeader, BottomNav, DashboardView, CustomersView, ReportsView, InvoiceForm, InvoiceListView, SettingsView, BuyerPickerModal, InvoiceDetailModal, SharedInvoiceModal, AddPaymentModal, PaymentsListModal, CustomerDetailModal, ManageTemplatesModal, PickTemplateModal, ManageDiscountsModal, ViewReceiptModal, ToastContainer },
   setup() {
     store.applyTheme();
     loadPinConfig();
@@ -3018,6 +3149,7 @@ const App = {
   },
   template: `
     <PinLockScreen />
+    <PinSetupModal />
     <AppHeader />
     <main>
       <DashboardView v-if="currentTab === 'dashboard'" @navigate="changeTab" />
