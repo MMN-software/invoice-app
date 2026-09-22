@@ -225,7 +225,9 @@ input:checked+.slider:before{transform:translateX(20px);background:#fff}
 .modal-bg.payment-modal{ z-index: 150; }
 
 /* Disabled switch styling */
-.switch input:disabled + .slider{opacity:.4;cursor:not-allowed}
+.switch input:disabled + .slider{opacity:.35 !important;cursor:not-allowed !important;filter:grayscale(.6)}
+.switch input:disabled + .slider:before{background:#94a3b8 !important}
+.switch input:disabled + .slider{background:rgba(255,255,255,.15) !important}
 </style>
 <script>
 window._dbgErrors = [];
@@ -1254,7 +1256,10 @@ const SettingsView = {
       <div class="form-title"><span class="ft-icon">🎨</span>ظاهر</div>
       <div class="setting-row" style="border:none">
         <div><div class="lbl">تم تاریک/روشن</div><div class="sub" v-if="store.settings.autoTheme">غیرفعال — تم خودکار روشنه</div></div>
-        <label class="switch"><input type="checkbox" :checked="store.settings.theme === 'dark'" :disabled="store.settings.autoTheme" @change="store.toggleTheme()"><span class="slider"></span></label>
+        <label class="switch" :style="{opacity: store.settings.autoTheme ? 0.35 : 1, pointerEvents: store.settings.autoTheme ? 'none' : 'auto'}">
+          <input type="checkbox" :checked="store.settings.theme === 'dark'" :disabled="store.settings.autoTheme" @change="store.toggleTheme()">
+          <span class="slider"></span>
+        </label>
       </div>
       <div class="setting-row">
         <div><div class="lbl">🌗 تم خودکار</div><div class="sub">۷ صبح تا ۷ شب روشن، بعدش تاریک</div></div>
